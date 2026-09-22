@@ -239,3 +239,51 @@ def resolve_alert(
     db.refresh(alert)
 
     return alert
+
+# ============================================================
+# DELETE ALERT
+# Admin Only
+# ============================================================
+
+@router.delete("/{alert_id}")
+def delete_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles("admin")
+    ),
+):
+    alert = (
+        db.query(Alert)
+        .filter(Alert.id == alert_id)
+        .first()
+    )
+
+    if not alert:
+        raise HTTPException(
+            status_code=404,
+            detail="Alert not found"
+        )
+
+    solar_system_id = alert.solar_system_id
+
+    # Record the deletion before removing the alert.
+    log_action(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE_ALERT",
+        resource_type="alert",
+        resource_id=alert.id,
+        details=(
+            f"Alert {alert.id} permanently deleted "
+            f"for solar system {solar_system_id}."
+        ),
+    )
+
+    db.delete(alert)
+    db.commit()
+
+    return {
+        "message": "Alert deleted successfully",
+        "alert_id": alert_id
+    }

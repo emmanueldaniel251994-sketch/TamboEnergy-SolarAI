@@ -10,7 +10,9 @@ from app.database import get_db
 
 from app.models.telemetry import Telemetry
 from app.models.solar_system import SolarSystem
+from app.models.alert import Alert
 from app.models.user import User
+
 
 from app.schemas.telemetry import (
     TelemetryCreate,
@@ -755,3 +757,165 @@ def get_latest_telemetry(
         )
 
     return latest_record
+# ============================================================
+# DELETE TELEMETRY / DIAGNOSTIC
+# Admin Only
+# ============================================================
+
+@router.delete("/{telemetry_id}")
+def delete_telemetry(
+    telemetry_id: int,
+
+    db: Session = Depends(
+        get_db
+    ),
+
+    current_user: User = Depends(
+        require_roles("admin")
+    ),
+):
+    """
+    Permanently delete a telemetry record and the diagnostic
+    information generated from that telemetry.
+
+    Only administrators are allowed to perform this action.
+
+    Any alerts directly linked to the telemetry record are
+    deleted first.
+    """
+
+    # ========================================================
+    # FIND TELEMETRY RECORD
+    # ========================================================
+
+    telemetry_record = (
+        db.query(Telemetry)
+        .filter(
+            Telemetry.id == telemetry_id
+        )
+        .first()
+    )
+
+    if not telemetry_record:
+        raise HTTPException(
+            status_code=404,
+            detail="Telemetry record not found",
+        )
+
+    # Save important information before deletion.
+    solar_system_id = (
+        telemetry_record.solar_system_id
+    )
+
+    try:
+
+        # ====================================================
+        # FIND LINKED ALERTS
+        # ====================================================
+
+        linked_alerts = (
+            db.query(Alert)
+            .filter(
+                Alert.telemetry_id == telemetry_id
+            )
+            .all()
+        )
+
+        deleted_alert_ids = [
+            alert.id
+            for alert in linked_alerts
+        ]
+
+        # ====================================================
+        # DELETE LINKED ALERTS
+        # ====================================================
+        #
+        # Alert.telemetry_id currently uses ON DELETE CASCADE.
+        #
+        # We still delete linked alerts explicitly here so the
+        # application behaviour is clear and predictable rather
+        # than depending only on database cascade behaviour.
+        # ====================================================
+
+        for alert in linked_alerts:
+            db.delete(alert)
+
+        # Flush alert deletions before deleting telemetry.
+        db.flush()
+
+        # ====================================================
+        # AUDIT LOG
+        # ====================================================
+
+        log_action(
+            db=db,
+
+            user_id=current_user.id,
+
+            action="DELETE_TELEMETRY",
+
+            resource_type="telemetry",
+
+            resource_id=telemetry_id,
+
+            details=(
+                f"Telemetry {telemetry_id} permanently deleted "
+                f"for solar system {solar_system_id}. "
+                f"Linked alerts deleted: "
+                f"{deleted_alert_ids}."
+            ),
+        )
+
+        # ====================================================
+        # DELETE TELEMETRY
+        # ====================================================
+
+        db.delete(
+            telemetry_record
+        )
+
+        # ====================================================
+        # SAVE TRANSACTION
+        # ====================================================
+
+        db.commit()
+
+        # ====================================================
+        # RESPONSE
+        # ====================================================
+
+        return {
+            "message": (
+                "Telemetry and diagnostic "
+                "deleted successfully"
+            ),
+            "telemetry_id": telemetry_id,
+            "solar_system_id": solar_system_id,
+            "deleted_alert_ids": (
+                deleted_alert_ids
+            ),
+        }
+
+    except HTTPException:
+
+        db.rollback()
+
+        raise
+
+    except Exception as error:
+
+        db.rollback()
+
+        # Log the actual error in the backend terminal
+        # without exposing internal database information
+        # to the frontend.
+        print(
+            f"Delete telemetry error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to delete telemetry record."
+            ),
+        )

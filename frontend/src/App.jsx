@@ -3,6 +3,8 @@ import "./App.css";
 import SolarSystems from "./pages/SolarSystems";
 import Customers from "./pages/Customers";
 import Alerts from "./pages/Alerts";
+import Diagnostics from "./pages/Diagnostics";
+import Maintenance from "./pages/Maintenance";
 
 function App() {
   // =========================================================
@@ -368,15 +370,31 @@ function App() {
           >
             Alerts
           </button>
-
-          <button>
+          <button
+            className={
+             activePage === "diagnostics"
+               ? "active"
+               : ""
+            }
+            onClick={() =>
+              setActivePage("diagnostics")
+            }
+          >
             Diagnostics
           </button>
 
-          <button>
+         <button
+           className={
+            activePage === "maintenance"
+              ? "active"
+              : ""
+            }
+           onClick={() =>
+             setActivePage("maintenance")
+            }
+          >
             Maintenance
           </button>
-
           <button>
             Analytics
           </button>
@@ -402,7 +420,11 @@ function App() {
           <Customers token={token} />
         ) : activePage === "alerts" ? (
           <Alerts token={token} />
-        ) : (
+        ) : activePage === "diagnostics" ? (
+          <Diagnostics token={token} />
+          ) : activePage === "maintenance" ? (
+    <Maintenance token={token} />
+  ) : (
 
           <>
             {/* ===============================================

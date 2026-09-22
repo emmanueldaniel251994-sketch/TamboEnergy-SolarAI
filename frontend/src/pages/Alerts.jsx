@@ -149,6 +149,64 @@ function Alerts({ token }) {
     };
 
     // =========================================================
+    // DELETE ALERT
+    // Admin Only
+    // =========================================================
+
+    const handleDelete = async (alert) => {
+        const confirmed = window.confirm(
+            `Permanently delete alert #${alert.id}?\n\n` +
+            `${alert.title}\n\n` +
+            "This action cannot be undone."
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setActionId(alert.id);
+        setError("");
+        setSuccess("");
+
+        try {
+            const response = await fetch(
+                `http://127.0.0.1:8000/alerts/${alert.id}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            let data = {};
+
+            try {
+                data = await response.json();
+            } catch {
+                // Response may not contain JSON
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail ||
+                    "Unable to delete alert."
+                );
+            }
+
+            setSuccess(
+                `Alert #${alert.id} deleted successfully.`
+            );
+
+            await loadAlerts();
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    // =========================================================
     // FORMAT DATE
     // =========================================================
 
@@ -193,6 +251,7 @@ function Alerts({ token }) {
 
     return (
         <div className="page-content">
+
             {/* HEADER */}
 
             <div className="page-header">
@@ -238,6 +297,7 @@ function Alerts({ token }) {
             {/* SUMMARY */}
 
             <div className="alert-summary-grid">
+
                 <div className="alert-summary-card">
                     <span>Total Alerts</span>
                     <strong>{alerts.length}</strong>
@@ -262,40 +322,57 @@ function Alerts({ token }) {
                     <span>Critical</span>
                     <strong>{criticalAlerts}</strong>
                 </div>
+
             </div>
 
             {/* ALERTS */}
 
             <div className="alerts-page-list">
+
                 {loading ? (
+
                     <div className="page-loading">
                         Loading alerts...
                     </div>
+
                 ) : alerts.length === 0 ? (
+
                     <div className="empty-state">
                         No alerts are currently available.
                     </div>
+
                 ) : (
+
                     alerts.map((alert) => (
+
                         <div
-                            className={`alert-page-card severity-${alert.severity?.toLowerCase() ||
+                            className={`alert-page-card severity-${
+                                alert.severity?.toLowerCase() ||
                                 "unknown"
-                                }`}
+                            }`}
                             key={alert.id}
                         >
+
                             {/* ALERT HEADER */}
 
                             <div className="alert-page-header">
+
                                 <div>
+
                                     <div className="alert-page-badges">
+
                                         <span
-                                            className={`alert-severity ${alert.severity}`}
+                                            className={`alert-severity ${
+                                                alert.severity || ""
+                                            }`}
                                         >
                                             {alert.severity || "unknown"}
                                         </span>
 
                                         <span
-                                            className={`alert-page-status status-${alert.status}`}
+                                            className={`alert-page-status status-${
+                                                alert.status || "unknown"
+                                            }`}
                                         >
                                             {alert.status || "unknown"}
                                         </span>
@@ -305,14 +382,17 @@ function Alerts({ token }) {
                                                 Needs Review
                                             </span>
                                         )}
+
                                     </div>
 
                                     <h3>{alert.title}</h3>
+
                                 </div>
 
                                 <strong className="alert-number">
                                     #{alert.id}
                                 </strong>
+
                             </div>
 
                             {/* MESSAGE */}
@@ -324,6 +404,7 @@ function Alerts({ token }) {
                             {/* DETAILS */}
 
                             <div className="alert-details-grid">
+
                                 <div>
                                     <span>Solar System</span>
                                     <strong>
@@ -353,37 +434,44 @@ function Alerts({ token }) {
                                         {formatDate(alert.created_at)}
                                     </strong>
                                 </div>
+
                             </div>
 
                             {/* LIFECYCLE */}
 
                             {(alert.acknowledged_at ||
                                 alert.resolved_at) && (
-                                    <div className="alert-timeline">
-                                        {alert.acknowledged_at && (
-                                            <span>
-                                                Acknowledged:{" "}
-                                                {formatDate(
-                                                    alert.acknowledged_at
-                                                )}
-                                            </span>
-                                        )}
 
-                                        {alert.resolved_at && (
-                                            <span>
-                                                Resolved:{" "}
-                                                {formatDate(
-                                                    alert.resolved_at
-                                                )}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="alert-timeline">
+
+                                    {alert.acknowledged_at && (
+                                        <span>
+                                            Acknowledged:{" "}
+                                            {formatDate(
+                                                alert.acknowledged_at
+                                            )}
+                                        </span>
+                                    )}
+
+                                    {alert.resolved_at && (
+                                        <span>
+                                            Resolved:{" "}
+                                            {formatDate(
+                                                alert.resolved_at
+                                            )}
+                                        </span>
+                                    )}
+
+                                </div>
+
+                            )}
 
                             {/* ACTIONS */}
 
                             <div className="alert-page-actions">
+
                                 {alert.status === "open" && (
+
                                     <button
                                         type="button"
                                         className="acknowledge-button"
@@ -398,9 +486,11 @@ function Alerts({ token }) {
                                             ? "Processing..."
                                             : "Acknowledge"}
                                     </button>
+
                                 )}
 
                                 {alert.status !== "resolved" && (
+
                                     <button
                                         type="button"
                                         className="resolve-button"
@@ -415,18 +505,42 @@ function Alerts({ token }) {
                                             ? "Processing..."
                                             : "Resolve"}
                                     </button>
+
                                 )}
+
+                                {/* DELETE */}
+
+                                <button
+                                    type="button"
+                                    className="delete-button"
+                                    disabled={
+                                        actionId === alert.id
+                                    }
+                                    onClick={() =>
+                                        handleDelete(alert)
+                                    }
+                                >
+                                    {actionId === alert.id
+                                        ? "Processing..."
+                                        : "Delete"}
+                                </button>
 
                                 {alert.status === "resolved" && (
                                     <span className="resolved-label">
                                         ✓ Resolved
                                     </span>
                                 )}
+
                             </div>
+
                         </div>
+
                     ))
+
                 )}
+
             </div>
+
         </div>
     );
 }
