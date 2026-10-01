@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../config";
 import { useEffect, useState } from "react";
 import {
     ResponsiveContainer,
@@ -11,8 +12,6 @@ import {
     BarChart,
     Bar,
 } from "recharts";
-
-const API_BASE_URL = "http://127.0.0.1:8000";
 
 function Analytics({ token }) {
     const [solarSystems, setSolarSystems] = useState([]);

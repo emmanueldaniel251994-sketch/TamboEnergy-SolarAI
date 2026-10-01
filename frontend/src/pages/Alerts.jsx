@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../config";
 import { useCallback, useEffect, useState } from "react";
 
 function Alerts({ token }) {
@@ -18,7 +19,7 @@ function Alerts({ token }) {
             setError("");
 
             const response = await fetch(
-                "http://127.0.0.1:8000/alerts/",
+                `${API_BASE_URL}/alerts/`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -57,7 +58,7 @@ function Alerts({ token }) {
 
         try {
             const response = await fetch(
-                `http://127.0.0.1:8000/alerts/${alert.id}/acknowledge`,
+                `${API_BASE_URL}/alerts/${alert.id}/acknowledge`,
                 {
                     method: "PUT",
                     headers: {
@@ -112,7 +113,7 @@ function Alerts({ token }) {
 
         try {
             const response = await fetch(
-                `http://127.0.0.1:8000/alerts/${alert.id}/resolve`,
+                `${API_BASE_URL}/alerts/${alert.id}/resolve`,
                 {
                     method: "PUT",
                     headers: {
@@ -170,7 +171,7 @@ function Alerts({ token }) {
 
         try {
             const response = await fetch(
-                `http://127.0.0.1:8000/alerts/${alert.id}`,
+                `${API_BASE_URL}/alerts/${alert.id}`,
                 {
                     method: "DELETE",
                     headers: {

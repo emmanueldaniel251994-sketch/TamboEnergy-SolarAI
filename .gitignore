@@ -11,6 +11,12 @@ __pycache__/
 !.env.example
 backend/.env
 frontend/.env
+simulator/.env
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
 
 # Node
 frontend/node_modules/

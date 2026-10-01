@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../config";
 import { useCallback, useEffect, useState } from "react";
 
 function SolarSystems({ token }) {
@@ -42,7 +43,7 @@ function SolarSystems({ token }) {
             setLoading(true);
 
             const response = await fetch(
-                "http://127.0.0.1:8000/solar-systems/",
+                `${API_BASE_URL}/solar-systems/`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -78,7 +79,7 @@ function SolarSystems({ token }) {
             setCustomersLoading(true);
 
             const response = await fetch(
-                "http://127.0.0.1:8000/customers/",
+                `${API_BASE_URL}/customers/`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -252,7 +253,7 @@ function SolarSystems({ token }) {
             }
 
             const response = await fetch(
-                "http://127.0.0.1:8000/solar-systems/",
+                `${API_BASE_URL}/solar-systems/`,
                 {
                     method: "POST",
 
@@ -323,7 +324,7 @@ function SolarSystems({ token }) {
 
         try {
             const response = await fetch(
-                `http://127.0.0.1:8000/solar-systems/${systemId}`,
+                `${API_BASE_URL}/solar-systems/${systemId}`,
                 {
                     method: "DELETE",
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import { API_BASE_URL } from "./config";
 import SolarSystems from "./pages/SolarSystems";
 import Customers from "./pages/Customers";
 import Alerts from "./pages/Alerts";
@@ -41,7 +42,7 @@ function App() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/auth/login",
+        `${API_BASE_URL}/auth/login`,
         {
           method: "POST",
           headers: {
@@ -113,7 +114,7 @@ function App() {
 
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/dashboard/summary",
+          `${API_BASE_URL}/dashboard/summary`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
