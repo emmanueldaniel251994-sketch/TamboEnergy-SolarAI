@@ -10,9 +10,11 @@ TamboEnergy SolarAI is an AI-assisted solar monitoring, diagnostics, alerting, m
 - Customer and solar-system management
 - Live telemetry monitoring
 - Device API-key authentication and telemetry ingestion
+- Device fleet management with activate/deactivate and admin key rotation
+- Device-to-telemetry provenance for hardware-originated readings
 - Rule-based fault detection with ML-assisted classification
 - Data-quality and rule/ML disagreement handling
-- Alerts with acknowledge and resolve lifecycle
+- Enforced alert lifecycle: open → acknowledged → resolved
 - Diagnostics and maintenance records
 - Analytics dashboard
 - Interactive device/fault simulator
@@ -113,6 +115,22 @@ Set `DEVICE_API_KEY` in `simulator/.env`, then run the simulator with an environ
 - `DEVICE_API_KEY` — per-device credential
 - `SOLARAI_API_URL` — SolarAI backend URL
 
+## Automated backend tests
+
+Pass 2 adds regression tests for the SolarAI decision engine, device API-key hashing, device telemetry provenance and alert lifecycle transitions.
+
+From `backend/` with the virtual environment active:
+
+```powershell
+pytest -q
+```
+
+The tests intentionally verify the safety behavior already established during development: safety-critical deterministic rules retain priority when the ML model disagrees, while high-confidence ML results may influence non-safety disagreements and still require review.
+
+## Device provenance
+
+Hardware-originated telemetry is stored with an optional `device_id`. Manual/admin telemetry keeps `device_id` empty. Deleting a registered device preserves historical telemetry and clears the device reference through the database foreign-key policy.
+
 ## Production database
 
 The application reads `DATABASE_URL`, so production can use PostgreSQL without changing source code. Example:
@@ -133,4 +151,4 @@ Run `alembic upgrade head` against the production database before starting the A
 
 ## Development status
 
-This repository is being prepared as the TamboEnergy SolarAI v1.0 MVP. The configuration layer is deployment-ready; device provenance, automated test coverage and additional production security hardening are part of the remaining v1.0 completion work.
+Pass 1 established environment-based configuration and deployment foundations. Pass 2 adds device fleet management, hardware telemetry provenance, a stricter alert lifecycle, role-aware frontend actions and automated backend regression tests. Production security hardening, deployment packaging and final end-to-end release verification remain before the v1.0 MVP release.

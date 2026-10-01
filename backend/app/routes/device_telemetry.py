@@ -126,6 +126,7 @@ def ingest_device_telemetry(
         new_record = process_telemetry(
             db=db,
             telemetry=telemetry,
+            device_id=device.id,
         )
 
         # ====================================================

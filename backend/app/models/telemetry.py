@@ -33,6 +33,18 @@ class Telemetry(Base):
         index=True,
     )
 
+    # Device provenance is optional because telemetry may also
+    # be created manually by an authenticated technician.
+    device_id = Column(
+        Integer,
+        ForeignKey(
+            "devices.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     # ========================================================
     # SOLAR / BATTERY SENSOR DATA
     # ========================================================
@@ -168,4 +180,9 @@ class Telemetry(Base):
 
     solar_system = relationship(
         "SolarSystem"
+    )
+
+    device = relationship(
+        "Device",
+        back_populates="telemetry_records",
     )

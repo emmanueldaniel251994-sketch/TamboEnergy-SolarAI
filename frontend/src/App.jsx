@@ -8,6 +8,7 @@ import Diagnostics from "./pages/Diagnostics";
 import Maintenance from "./pages/Maintenance";
 import Analytics from "./pages/Analytics";
 import Telemetry from "./pages/Telemetry";
+import Devices from "./pages/Devices";
 
 function App() {
   // =========================================================
@@ -24,6 +25,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const [dashboard, setDashboard] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [dashboardLoading, setDashboardLoading] =
     useState(false);
 
@@ -93,6 +95,7 @@ function App() {
 
     setToken(null);
     setDashboard(null);
+    setCurrentUser(null);
     setEmail("");
     setPassword("");
     setMessage("");
@@ -152,6 +155,48 @@ function App() {
     };
 
     loadDashboard();
+  }, [token]);
+
+  // =========================================================
+  // LOAD CURRENT USER PROFILE
+  // =========================================================
+
+  useEffect(() => {
+    if (!token) {
+      setCurrentUser(null);
+      return;
+    }
+
+    const loadCurrentUser = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/auth/me`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.detail || "Unable to load user profile"
+          );
+        }
+
+        setCurrentUser(data);
+      } catch (error) {
+        if (error.message.toLowerCase().includes("token")) {
+          localStorage.removeItem("solarai_token");
+          setToken(null);
+        }
+        setMessage(error.message);
+      }
+    };
+
+    loadCurrentUser();
   }, [token]);
 
   // =========================================================
@@ -373,7 +418,22 @@ function App() {
             Live Monitoring
           </button>
 
-          {/* FUTURE PAGES */}
+          {/* DEVICES */}
+
+          <button
+            className={
+              activePage === "devices"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setActivePage("devices")
+            }
+          >
+            Devices
+          </button>
+
+          {/* OPERATIONS */}
 
           <button
             className={
@@ -428,6 +488,13 @@ function App() {
         </nav>
 
         <div className="sidebar-bottom">
+          {currentUser && (
+            <div className="sidebar-user">
+              <strong>{currentUser.full_name}</strong>
+              <span>{currentUser.role}</span>
+            </div>
+          )}
+
           <button
             className="logout-button"
             onClick={handleLogout}
@@ -447,8 +514,10 @@ function App() {
           <Telemetry token={token} />
         ) : activePage === "customers" ? (
           <Customers token={token} />
+        ) : activePage === "devices" ? (
+          <Devices token={token} currentUser={currentUser} />
         ) : activePage === "alerts" ? (
-          <Alerts token={token} />
+          <Alerts token={token} currentUser={currentUser} />
         ) : activePage === "diagnostics" ? (
           <Diagnostics token={token} />
         ) : activePage === "maintenance" ? (

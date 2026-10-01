@@ -607,6 +607,23 @@ function Telemetry({ token }) {
                         </div>
                     </section>
 
+                    <section className="telemetry-section telemetry-source-section">
+                        <div className="telemetry-section-heading">
+                            <div>
+                                <h2>Telemetry Source</h2>
+                                <p>Provenance for the latest reading.</p>
+                            </div>
+                        </div>
+                        <div className="telemetry-source-card">
+                            <span>Source</span>
+                            <strong>
+                                {telemetry.device_id
+                                    ? `Device #${telemetry.device_id}`
+                                    : "Manual / API"}
+                            </strong>
+                        </div>
+                    </section>
+
                     {/* DATA QUALITY */}
 
                     <section className="telemetry-section">

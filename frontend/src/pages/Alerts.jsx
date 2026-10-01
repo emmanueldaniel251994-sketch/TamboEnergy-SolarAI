@@ -1,10 +1,11 @@
 import { API_BASE_URL } from "../config";
 import { useCallback, useEffect, useState } from "react";
 
-function Alerts({ token }) {
+function Alerts({ token, currentUser }) {
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionId, setActionId] = useState(null);
+    const [statusFilter, setStatusFilter] = useState("active");
 
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -226,6 +227,26 @@ function Alerts({ token }) {
     };
 
     // =========================================================
+    // ROLE + FILTERS
+    // =========================================================
+
+    const role = currentUser?.role || "";
+    const canManage = role === "admin" || role === "technician";
+    const canDelete = role === "admin";
+
+    const filteredAlerts = alerts.filter((alert) => {
+        if (statusFilter === "all") {
+            return true;
+        }
+
+        if (statusFilter === "active") {
+            return alert.status === "open" || alert.status === "acknowledged";
+        }
+
+        return alert.status === statusFilter;
+    });
+
+    // =========================================================
     // SUMMARY COUNTS
     // =========================================================
 
@@ -326,6 +347,29 @@ function Alerts({ token }) {
 
             </div>
 
+            <div className="alert-workflow-bar">
+                <div>
+                    <strong>Lifecycle</strong>
+                    <span>Open → Acknowledged → Resolved</span>
+                </div>
+
+                <label>
+                    Show
+                    <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                            setStatusFilter(event.target.value)
+                        }
+                    >
+                        <option value="active">Active</option>
+                        <option value="all">All</option>
+                        <option value="open">Open</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </label>
+            </div>
+
             {/* ALERTS */}
 
             <div className="alerts-page-list">
@@ -336,15 +380,15 @@ function Alerts({ token }) {
                         Loading alerts...
                     </div>
 
-                ) : alerts.length === 0 ? (
+                ) : filteredAlerts.length === 0 ? (
 
                     <div className="empty-state">
-                        No alerts are currently available.
+                        No alerts match the selected filter.
                     </div>
 
                 ) : (
 
-                    alerts.map((alert) => (
+                    filteredAlerts.map((alert) => (
 
                         <div
                             className={`alert-page-card severity-${
@@ -471,7 +515,7 @@ function Alerts({ token }) {
 
                             <div className="alert-page-actions">
 
-                                {alert.status === "open" && (
+                                {canManage && alert.status === "open" && (
 
                                     <button
                                         type="button"
@@ -490,7 +534,7 @@ function Alerts({ token }) {
 
                                 )}
 
-                                {alert.status !== "resolved" && (
+                                {canManage && alert.status === "acknowledged" && (
 
                                     <button
                                         type="button"
@@ -509,22 +553,24 @@ function Alerts({ token }) {
 
                                 )}
 
-                                {/* DELETE */}
+                                {/* DELETE — ADMIN ONLY */}
 
-                                <button
-                                    type="button"
-                                    className="delete-button"
-                                    disabled={
-                                        actionId === alert.id
-                                    }
-                                    onClick={() =>
-                                        handleDelete(alert)
-                                    }
-                                >
-                                    {actionId === alert.id
-                                        ? "Processing..."
-                                        : "Delete"}
-                                </button>
+                                {canDelete && (
+                                    <button
+                                        type="button"
+                                        className="delete-button"
+                                        disabled={
+                                            actionId === alert.id
+                                        }
+                                        onClick={() =>
+                                            handleDelete(alert)
+                                        }
+                                    >
+                                        {actionId === alert.id
+                                            ? "Processing..."
+                                            : "Delete"}
+                                    </button>
+                                )}
 
                                 {alert.status === "resolved" && (
                                     <span className="resolved-label">

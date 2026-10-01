@@ -23,6 +23,7 @@ SAFETY_CRITICAL_RULES = {
 def process_telemetry(
     db: Session,
     telemetry: TelemetryCreate,
+    device_id: int | None = None,
 ) -> Telemetry:
     """
     Process and store telemetry through the common
@@ -194,6 +195,7 @@ def process_telemetry(
 
     new_record = Telemetry(
         solar_system_id=telemetry.solar_system_id,
+        device_id=device_id,
 
         pv_voltage=telemetry.pv_voltage,
         pv_current=telemetry.pv_current,
