@@ -15,7 +15,7 @@ from app.models.audit_log import AuditLog
 
 from app.models.telemetry import Telemetry
 from app.models.alert import Alert
-
+from app.models.device import Device
 
 config = context.config
 

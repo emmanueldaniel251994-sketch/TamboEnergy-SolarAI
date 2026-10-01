@@ -5,6 +5,8 @@ import Customers from "./pages/Customers";
 import Alerts from "./pages/Alerts";
 import Diagnostics from "./pages/Diagnostics";
 import Maintenance from "./pages/Maintenance";
+import Analytics from "./pages/Analytics";
+import Telemetry from "./pages/Telemetry";
 
 function App() {
   // =========================================================
@@ -355,6 +357,20 @@ function App() {
           >
             Customers
           </button>
+          {/* LIVE MONITORING */}
+
+          <button
+            className={
+              activePage === "telemetry"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setActivePage("telemetry")
+            }
+          >
+            Live Monitoring
+          </button>
 
           {/* FUTURE PAGES */}
 
@@ -372,9 +388,9 @@ function App() {
           </button>
           <button
             className={
-             activePage === "diagnostics"
-               ? "active"
-               : ""
+              activePage === "diagnostics"
+                ? "active"
+                : ""
             }
             onClick={() =>
               setActivePage("diagnostics")
@@ -383,21 +399,31 @@ function App() {
             Diagnostics
           </button>
 
-         <button
-           className={
-            activePage === "maintenance"
-              ? "active"
-              : ""
+          <button
+            className={
+              activePage === "maintenance"
+                ? "active"
+                : ""
             }
-           onClick={() =>
-             setActivePage("maintenance")
+            onClick={() =>
+              setActivePage("maintenance")
             }
           >
             Maintenance
           </button>
-          <button>
+          <button
+            className={
+              activePage === "analytics"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setActivePage("analytics")
+            }
+          >
             Analytics
           </button>
+
         </nav>
 
         <div className="sidebar-bottom">
@@ -416,15 +442,19 @@ function App() {
       <main className="dashboard-main">
         {activePage === "systems" ? (
           <SolarSystems token={token} />
+        ) : activePage === "telemetry" ? (
+          <Telemetry token={token} />
         ) : activePage === "customers" ? (
           <Customers token={token} />
         ) : activePage === "alerts" ? (
           <Alerts token={token} />
         ) : activePage === "diagnostics" ? (
           <Diagnostics token={token} />
-          ) : activePage === "maintenance" ? (
-    <Maintenance token={token} />
-  ) : (
+        ) : activePage === "maintenance" ? (
+          <Maintenance token={token} />
+        ) : activePage === "analytics" ? (
+          <Analytics token={token} />
+        ) : (
 
           <>
             {/* ===============================================

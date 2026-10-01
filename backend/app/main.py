@@ -29,11 +29,17 @@ from app.routes.telemetry import (
     router as telemetry_router
 )
 
+from app.routes.device_telemetry import (
+    router as device_telemetry_router,
+)
+
 from app.routes import diagnostics
 
 from app.routes import alerts
 
 from app.routes import dashboard
+
+from app.routes.device import router as device_router
 
 # ============================================================
 # CREATE FASTAPI APPLICATION
@@ -90,6 +96,15 @@ app.include_router(
 app.include_router(
     telemetry_router
 )
+
+app.include_router(
+    device_router
+)
+
+app.include_router(
+    device_telemetry_router
+)
+
 
 app.include_router(
     diagnostics.router

@@ -13,7 +13,6 @@ from app.models.solar_system import SolarSystem
 from app.models.alert import Alert
 from app.models.user import User
 
-
 from app.schemas.telemetry import (
     TelemetryCreate,
     TelemetryResponse,
@@ -26,20 +25,8 @@ from app.security import (
 
 from app.services.audit import log_action
 
-from app.services.fault_detection import (
-    detect_fault,
-)
-
-from app.services.ml_prediction import (
-    predict_fault,
-)
-
-from app.services.alert_service import (
-    create_fault_alert,
-)
-
-from app.services.data_quality import (
-    assess_data_quality,
+from app.services.telemetry_processor import (
+    process_telemetry,
 )
 
 
@@ -50,26 +37,8 @@ router = APIRouter(
 
 
 # ============================================================
-# SAFETY-CRITICAL RULES
-# ============================================================
-#
-# ML must never override these deterministic safety
-# conditions when the rule engine detects them.
-# ============================================================
-
-SAFETY_CRITICAL_RULES = {
-    "critical_low_battery",
-    "battery_undervoltage",
-    "battery_overvoltage",
-    "high_temperature",
-    "overheating",
-    "high_load",
-    "inverter_error",
-}
-
-
-# ============================================================
 # CREATE TELEMETRY
+# Admin + Technician
 # ============================================================
 
 @router.post(
@@ -110,417 +79,73 @@ def create_telemetry(
             detail="Solar system not found",
         )
 
-    # ========================================================
-    # CALCULATE PV POWER
-    # ========================================================
-    #
-    # If PV power was not supplied but both voltage and
-    # current are available:
-    #
-    # P = V × I
-    #
-    # Important:
-    # If current is missing, PV power remains None.
-    # ========================================================
+    try:
 
-    pv_power = telemetry.pv_power
+        # ====================================================
+        # SHARED SOLARAI TELEMETRY PIPELINE
+        # ====================================================
 
-    if (
-        pv_power is None
-        and telemetry.pv_voltage is not None
-        and telemetry.pv_current is not None
-    ):
-        pv_power = (
-            telemetry.pv_voltage
-            * telemetry.pv_current
+        new_record = process_telemetry(
+            db=db,
+            telemetry=telemetry,
         )
 
-    # ========================================================
-    # DATA QUALITY ASSESSMENT
-    # ========================================================
+        # ====================================================
+        # AUDIT LOG
+        # ====================================================
 
-    quality_result = assess_data_quality(
-        pv_voltage=telemetry.pv_voltage,
-        pv_current=telemetry.pv_current,
-        pv_power=pv_power,
-        battery_voltage=telemetry.battery_voltage,
-        battery_current=telemetry.battery_current,
-        battery_soc=telemetry.battery_soc,
-        load_power=telemetry.load_power,
-        temperature=telemetry.temperature,
-    )
-
-    data_quality_score = (
-        quality_result[
-            "data_quality_score"
-        ]
-    )
-
-    missing_fields_list = (
-        quality_result[
-            "missing_fields"
-        ]
-    )
-
-    ml_prediction_available = (
-        quality_result[
-            "ml_prediction_available"
-        ]
-    )
-
-    # Store the list in SQLite as comma-separated text.
-    if missing_fields_list:
-        missing_fields = ",".join(
-            missing_fields_list
-        )
-    else:
-        missing_fields = None
-
-    # ========================================================
-    # RULE-BASED FAULT DETECTION
-    # ========================================================
-    #
-    # The rule engine can still work with available sensor
-    # measurements even when other fields are missing.
-    # ========================================================
-
-    fault_result = detect_fault(
-        pv_voltage=telemetry.pv_voltage,
-        pv_current=telemetry.pv_current,
-        pv_power=pv_power,
-        battery_voltage=telemetry.battery_voltage,
-        battery_current=telemetry.battery_current,
-        battery_soc=telemetry.battery_soc,
-        load_power=telemetry.load_power,
-        temperature=telemetry.temperature,
-        error_code=telemetry.error_code,
-    )
-
-    rule_prediction = (
-        fault_result.get(
-            "fault_type"
-        )
-        or "normal"
-    )
-
-    rule_severity = (
-        fault_result.get(
-            "fault_severity"
-        )
-        or "none"
-    )
-
-    detected_status = (
-        fault_result.get(
-            "status"
-        )
-        or "normal"
-    )
-
-    # ========================================================
-    # MACHINE LEARNING PREDICTION
-    # ========================================================
-    #
-    # ML is only used when enough sensor information exists.
-    #
-    # This prevents missing values from being converted to
-    # zero and accidentally creating a false diagnosis.
-    # ========================================================
-
-    if ml_prediction_available:
-
-        ml_result = predict_fault(
-            pv_voltage=telemetry.pv_voltage,
-            pv_current=telemetry.pv_current,
-            pv_power=pv_power,
-            battery_voltage=telemetry.battery_voltage,
-            battery_current=telemetry.battery_current,
-            battery_soc=telemetry.battery_soc,
-            load_power=telemetry.load_power,
-            temperature=telemetry.temperature,
-            error_code=telemetry.error_code,
+        log_action(
+            db=db,
+            user_id=current_user.id,
+            action="create",
+            resource_type="telemetry",
+            resource_id=new_record.id,
+            details=(
+                f"Telemetry created for solar system "
+                f"{telemetry.solar_system_id}. "
+                f"Data quality: "
+                f"{new_record.data_quality_score}%. "
+                f"ML available: "
+                f"{new_record.ml_prediction_available}. "
+                f"Rule diagnosis: "
+                f"{new_record.fault_type}. "
+                f"ML prediction: "
+                f"{new_record.ml_prediction}. "
+                f"Final diagnosis: "
+                f"{new_record.final_diagnosis}. "
+                f"Needs review: "
+                f"{new_record.needs_review}."
+            ),
         )
 
-        # The ML service itself may still fail safely.
-        if ml_result.get(
-            "prediction_available",
-            True,
-        ):
+        # ====================================================
+        # SAVE TRANSACTION
+        # ====================================================
 
-            ml_prediction = (
-                ml_result.get(
-                    "predicted_fault"
-                )
-            )
+        db.commit()
+        db.refresh(new_record)
 
-            ml_confidence = float(
-                ml_result.get(
-                    "confidence",
-                    0.0,
-                )
-            )
+        return new_record
 
-        else:
+    except HTTPException:
 
-            ml_prediction_available = 0
-            ml_prediction = None
-            ml_confidence = 0.0
+        db.rollback()
+        raise
 
-    else:
+    except Exception as error:
 
-        ml_prediction = None
-        ml_confidence = 0.0
+        db.rollback()
 
-    # ========================================================
-    # RULE + ML DECISION ENGINE
-    # ========================================================
-
-    # --------------------------------------------------------
-    # CASE 1:
-    # ML NOT AVAILABLE
-    # --------------------------------------------------------
-    #
-    # The deterministic rule engine remains active.
-    #
-    # We do not call this an ML disagreement because ML was
-    # never trusted/run.
-    # --------------------------------------------------------
-
-    if not ml_prediction_available:
-
-        prediction_agreement = (
-            "not_available"
+        print(
+            f"Create telemetry error: {error}"
         )
 
-        final_diagnosis = (
-            rule_prediction
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to create telemetry record."
+            ),
         )
-
-        needs_review = 1
-
-    # --------------------------------------------------------
-    # CASE 2:
-    # RULE ENGINE AND ML AGREE
-    # --------------------------------------------------------
-
-    elif rule_prediction == ml_prediction:
-
-        prediction_agreement = "agree"
-
-        final_diagnosis = (
-            rule_prediction
-        )
-
-        needs_review = 0
-
-    # --------------------------------------------------------
-    # CASE 3:
-    # RULE ENGINE AND ML DISAGREE
-    # --------------------------------------------------------
-
-    else:
-
-        prediction_agreement = (
-            "disagree"
-        )
-
-        needs_review = 1
-
-        # ----------------------------------------------------
-        # SAFETY RULE PRIORITY
-        # ----------------------------------------------------
-        #
-        # ML cannot override deterministic critical/high
-        # electrical or safety conditions.
-        # ----------------------------------------------------
-
-        if (
-            rule_prediction
-            in SAFETY_CRITICAL_RULES
-        ):
-
-            final_diagnosis = (
-                rule_prediction
-            )
-
-        # ----------------------------------------------------
-        # NON-SAFETY DISAGREEMENT
-        # ----------------------------------------------------
-        #
-        # A high-confidence ML prediction may assist when
-        # there is no deterministic safety rule.
-        # Technician review is still required.
-        # ----------------------------------------------------
-
-        elif ml_confidence >= 0.90:
-
-            final_diagnosis = (
-                ml_prediction
-            )
-
-        else:
-
-            final_diagnosis = (
-                rule_prediction
-            )
-
-    # ========================================================
-    # CREATE TELEMETRY DATABASE RECORD
-    # ========================================================
-
-    new_record = Telemetry(
-
-        solar_system_id=(
-            telemetry.solar_system_id
-        ),
-
-        pv_voltage=(
-            telemetry.pv_voltage
-        ),
-
-        pv_current=(
-            telemetry.pv_current
-        ),
-
-        pv_power=(
-            pv_power
-        ),
-
-        battery_voltage=(
-            telemetry.battery_voltage
-        ),
-
-        battery_current=(
-            telemetry.battery_current
-        ),
-
-        battery_soc=(
-            telemetry.battery_soc
-        ),
-
-        load_power=(
-            telemetry.load_power
-        ),
-
-        temperature=(
-            telemetry.temperature
-        ),
-
-        error_code=(
-            telemetry.error_code
-        ),
-
-        # Rule engine result
-        fault_type=(
-            rule_prediction
-        ),
-
-        fault_severity=(
-            rule_severity
-        ),
-
-        # ML result
-        ml_prediction=(
-            ml_prediction
-        ),
-
-        ml_confidence=(
-            ml_confidence
-        ),
-
-        ml_prediction_available=(
-            ml_prediction_available
-        ),
-
-        # Data quality
-        data_quality_score=(
-            data_quality_score
-        ),
-
-        missing_fields=(
-            missing_fields
-        ),
-
-        # Combined diagnosis
-        prediction_agreement=(
-            prediction_agreement
-        ),
-
-        final_diagnosis=(
-            final_diagnosis
-        ),
-
-        needs_review=(
-            needs_review
-        ),
-
-        # Do not trust incoming status.
-        # Store the rule engine's detected status.
-        status=(
-            detected_status
-        ),
-    )
-
-    db.add(
-        new_record
-    )
-
-    # Flush first so the telemetry record receives its ID.
-    db.flush()
-
-    # ========================================================
-    # AUTOMATIC ALERT CREATION
-    # ========================================================
-
-    create_fault_alert(
-        db=db,
-        telemetry=new_record,
-    )
-
-    # ========================================================
-    # AUDIT LOG
-    # ========================================================
-
-    log_action(
-        db=db,
-
-        user_id=current_user.id,
-
-        action="create",
-
-        resource_type="telemetry",
-
-        resource_id=new_record.id,
-
-        details=(
-            f"Telemetry created for solar system "
-            f"{telemetry.solar_system_id}. "
-            f"Data quality: "
-            f"{data_quality_score}%. "
-            f"ML available: "
-            f"{ml_prediction_available}. "
-            f"Rule diagnosis: "
-            f"{rule_prediction}. "
-            f"ML prediction: "
-            f"{ml_prediction}. "
-            f"Final diagnosis: "
-            f"{final_diagnosis}. "
-            f"Needs review: "
-            f"{needs_review}."
-        ),
-    )
-
-    # ========================================================
-    # SAVE DATABASE TRANSACTION
-    # ========================================================
-
-    db.commit()
-
-    db.refresh(
-        new_record
-    )
-
-    return new_record
 
 
 # ============================================================
@@ -532,9 +157,7 @@ def create_telemetry(
     response_model=list[TelemetryResponse],
 )
 def get_telemetry(
-
     solar_system_id: int | None = None,
-
     limit: int = 100,
 
     db: Session = Depends(
@@ -667,7 +290,6 @@ def get_telemetry(
     response_model=TelemetryResponse,
 )
 def get_latest_telemetry(
-
     solar_system_id: int,
 
     db: Session = Depends(
@@ -757,6 +379,8 @@ def get_latest_telemetry(
         )
 
     return latest_record
+
+
 # ============================================================
 # DELETE TELEMETRY / DIAGNOSTIC
 # Admin Only
@@ -797,12 +421,12 @@ def delete_telemetry(
     )
 
     if not telemetry_record:
+
         raise HTTPException(
             status_code=404,
             detail="Telemetry record not found",
         )
 
-    # Save important information before deletion.
     solar_system_id = (
         telemetry_record.solar_system_id
     )
@@ -816,7 +440,8 @@ def delete_telemetry(
         linked_alerts = (
             db.query(Alert)
             .filter(
-                Alert.telemetry_id == telemetry_id
+                Alert.telemetry_id
+                == telemetry_id
             )
             .all()
         )
@@ -829,18 +454,10 @@ def delete_telemetry(
         # ====================================================
         # DELETE LINKED ALERTS
         # ====================================================
-        #
-        # Alert.telemetry_id currently uses ON DELETE CASCADE.
-        #
-        # We still delete linked alerts explicitly here so the
-        # application behaviour is clear and predictable rather
-        # than depending only on database cascade behaviour.
-        # ====================================================
 
         for alert in linked_alerts:
             db.delete(alert)
 
-        # Flush alert deletions before deleting telemetry.
         db.flush()
 
         # ====================================================
@@ -849,15 +466,10 @@ def delete_telemetry(
 
         log_action(
             db=db,
-
             user_id=current_user.id,
-
             action="DELETE_TELEMETRY",
-
             resource_type="telemetry",
-
             resource_id=telemetry_id,
-
             details=(
                 f"Telemetry {telemetry_id} permanently deleted "
                 f"for solar system {solar_system_id}. "
@@ -880,10 +492,6 @@ def delete_telemetry(
 
         db.commit()
 
-        # ====================================================
-        # RESPONSE
-        # ====================================================
-
         return {
             "message": (
                 "Telemetry and diagnostic "
@@ -899,16 +507,12 @@ def delete_telemetry(
     except HTTPException:
 
         db.rollback()
-
         raise
 
     except Exception as error:
 
         db.rollback()
 
-        # Log the actual error in the backend terminal
-        # without exposing internal database information
-        # to the frontend.
         print(
             f"Delete telemetry error: {error}"
         )
