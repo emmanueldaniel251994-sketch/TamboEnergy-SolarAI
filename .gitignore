@@ -9,6 +9,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!backend/.env.production.example
 backend/.env
 frontend/.env
 simulator/.env
@@ -42,3 +43,7 @@ npm-debug.log*
 .mypy_cache/
 .ruff_cache/
 backend/test_disagreements.py
+
+# Test databases
+backend/ci_test.db
+backend/pass3_test.db

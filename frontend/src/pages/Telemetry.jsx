@@ -615,12 +615,28 @@ function Telemetry({ token }) {
                             </div>
                         </div>
                         <div className="telemetry-source-card">
-                            <span>Source</span>
-                            <strong>
-                                {telemetry.device_id
-                                    ? `Device #${telemetry.device_id}`
-                                    : "Manual / API"}
-                            </strong>
+                            <div>
+                                <span>Source</span>
+                                <strong>
+                                    {telemetry.device_id
+                                        ? `Device #${telemetry.device_id}`
+                                        : "Manual / API"}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Device Event ID</span>
+                                <strong>
+                                    {telemetry.device_event_id || "—"}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Device Timestamp</span>
+                                <strong>
+                                    {formatDate(telemetry.device_timestamp)}
+                                </strong>
+                            </div>
                         </div>
                     </section>
 

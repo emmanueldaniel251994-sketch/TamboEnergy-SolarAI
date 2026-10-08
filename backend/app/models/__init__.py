@@ -6,3 +6,5 @@ from app.models.audit_log import AuditLog
 from app.models.telemetry import Telemetry
 from app.models.device import Device
 from app.models.alert import Alert
+
+from app.models.device_request_nonce import DeviceRequestNonce

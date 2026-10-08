@@ -1,6 +1,10 @@
+import hashlib
+import hmac
+import json
 import os
 import random
 import time
+import uuid
 
 import requests
 from dotenv import load_dotenv
@@ -206,6 +210,30 @@ def apply_scenario(
 
 
 # ============================================================
+# REQUEST SIGNING
+# ============================================================
+
+
+def create_signature(payload, timestamp, nonce):
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    payload_hash = hashlib.sha256(
+        canonical.encode("utf-8")
+    ).hexdigest()
+    message = f"v1.{timestamp}.{nonce}.{payload_hash}"
+    return hmac.new(
+        DEVICE_API_KEY.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+# ============================================================
 # SEND TELEMETRY
 # ============================================================
 
@@ -214,8 +242,19 @@ def send_telemetry(
     scenario,
 ):
 
+    # Each logical reading receives a stable event ID. If a gateway retries
+    # the same event after a network interruption it should reuse this ID.
+    payload.setdefault("event_id", uuid.uuid4().hex)
+
+    timestamp = str(int(time.time()))
+    nonce = uuid.uuid4().hex
+    signature = create_signature(payload, timestamp, nonce)
+
     headers = {
         "X-Device-API-Key": DEVICE_API_KEY,
+        "X-Device-Timestamp": timestamp,
+        "X-Device-Nonce": nonce,
+        "X-Device-Signature": signature,
         "Content-Type": "application/json",
     }
 

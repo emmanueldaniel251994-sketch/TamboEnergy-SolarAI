@@ -207,3 +207,125 @@ def test_alert_lifecycle_requires_acknowledgement():
     resolve_alert_record(alert)
     assert alert.status == "resolved"
     assert alert.resolved_at is not None
+
+
+def test_device_request_signature_detects_tampering():
+    from app.device_security import (
+        create_device_request_signature,
+        verify_device_request_signature,
+    )
+
+    key = generate_device_api_key()
+    payload = {
+        "event_id": "evt-12345678",
+        "pv_voltage": 125.0,
+        "battery_soc": 80.0,
+    }
+    timestamp = "1791198000"
+    nonce = "nonce-12345678"
+
+    signature = create_device_request_signature(
+        key,
+        timestamp,
+        nonce,
+        payload,
+    )
+
+    assert verify_device_request_signature(
+        key,
+        timestamp,
+        nonce,
+        payload,
+        signature,
+    ) is True
+
+    tampered = dict(payload)
+    tampered["battery_soc"] = 5.0
+    assert verify_device_request_signature(
+        key,
+        timestamp,
+        nonce,
+        tampered,
+        signature,
+    ) is False
+
+
+def test_device_nonce_cannot_be_reused(db_session):
+    from datetime import datetime, timezone
+    from fastapi import HTTPException
+
+    from app.models.device_request_nonce import DeviceRequestNonce  # noqa: F401
+    from app.services.device_ingestion_security import reserve_device_nonce
+
+    customer = Customer(name="Nonce Customer")
+    db_session.add(customer)
+    db_session.flush()
+    system = SolarSystem(customer_id=customer.id, location="Nonce Site")
+    db_session.add(system)
+    db_session.flush()
+    device = Device(
+        solar_system_id=system.id,
+        device_name="Nonce Gateway",
+        device_type="monitoring_gateway",
+        api_key_hash="b" * 64,
+        is_active=True,
+    )
+    db_session.add(device)
+    db_session.flush()
+
+    timestamp = datetime.now(timezone.utc)
+    reserve_device_nonce(
+        db=db_session,
+        device_id=device.id,
+        nonce="nonce-replay-test",
+        request_timestamp=timestamp,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        reserve_device_nonce(
+            db=db_session,
+            device_id=device.id,
+            nonce="nonce-replay-test",
+            request_timestamp=timestamp,
+        )
+
+    assert exc_info.value.status_code == 409
+
+
+def test_device_event_id_is_stored(db_session, monkeypatch):
+    disable_alert_creation(monkeypatch)
+    monkeypatch.setattr(
+        telemetry_processor,
+        "predict_fault",
+        lambda **kwargs: {
+            "predicted_fault": "normal",
+            "confidence": 0.95,
+            "prediction_available": True,
+        },
+    )
+
+    customer = Customer(name="Event Customer")
+    db_session.add(customer)
+    db_session.flush()
+    system = SolarSystem(customer_id=customer.id, location="Event Site")
+    db_session.add(system)
+    db_session.flush()
+    device = Device(
+        solar_system_id=system.id,
+        device_name="Event Gateway",
+        device_type="monitoring_gateway",
+        api_key_hash="c" * 64,
+        is_active=True,
+    )
+    db_session.add(device)
+    db_session.flush()
+
+    record = telemetry_processor.process_telemetry(
+        db_session,
+        full_telemetry(solar_system_id=system.id),
+        device_id=device.id,
+        device_event_id="evt-test-12345678",
+    )
+    db_session.flush()
+
+    assert record.device_event_id == "evt-test-12345678"

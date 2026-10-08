@@ -9,16 +9,18 @@ TamboEnergy SolarAI is an AI-assisted solar monitoring, diagnostics, alerting, m
 - JWT authentication with admin, technician and customer roles
 - Customer and solar-system management
 - Live telemetry monitoring
-- Device API-key authentication and telemetry ingestion
+- Device API-key authentication and signed telemetry ingestion
 - Device fleet management with activate/deactivate and admin key rotation
-- Device-to-telemetry provenance for hardware-originated readings
+- Device-to-telemetry provenance, gateway timestamps and idempotent event IDs
 - Rule-based fault detection with ML-assisted classification
 - Data-quality and rule/ML disagreement handling
 - Enforced alert lifecycle: open → acknowledged → resolved
 - Diagnostics and maintenance records
 - Analytics dashboard
 - Interactive device/fault simulator
+- Replay protection, per-device rate limiting and request integrity signatures
 - Alembic database migrations
+- GitHub Actions CI and Docker deployment packaging
 
 ## Project structure
 
@@ -99,12 +101,19 @@ Set `DEVICE_API_KEY` in `simulator/.env`, then run the simulator with an environ
 
 ### Backend
 
-- `APP_ENV` — `development` or production environment label
+- `APP_ENV` — `development` or `production`
+- `APP_VERSION` — API/release version
 - `SECRET_KEY` — JWT signing secret; required
 - `ALGORITHM` — JWT algorithm, default `HS256`
 - `ACCESS_TOKEN_EXPIRE_MINUTES` — JWT lifetime, default `60`
+- `JWT_ISSUER` / `JWT_AUDIENCE` — JWT validation identifiers
 - `DATABASE_URL` — SQLAlchemy database URL
 - `CORS_ORIGINS` — comma-separated allowed frontend origins
+- `ALLOWED_HOSTS` — accepted HTTP Host names
+- `DEVICE_REQUEST_SIGNING_REQUIRED` — require signed gateway requests; mandatory in production
+- `DEVICE_REQUEST_MAX_SKEW_SECONDS` — request timestamp freshness window
+- `DEVICE_RATE_LIMIT_PER_MINUTE` — maximum recent telemetry records per device
+- `DEVICE_NONCE_RETENTION_HOURS` — replay nonce retention period
 
 ### Frontend
 
@@ -117,7 +126,7 @@ Set `DEVICE_API_KEY` in `simulator/.env`, then run the simulator with an environ
 
 ## Automated backend tests
 
-Pass 2 adds regression tests for the SolarAI decision engine, device API-key hashing, device telemetry provenance and alert lifecycle transitions.
+The regression suite covers the SolarAI decision engine, device API-key hashing, HMAC request signatures, replay prevention, device telemetry provenance/event IDs and alert lifecycle transitions.
 
 From `backend/` with the virtual environment active:
 
@@ -144,11 +153,19 @@ Run `alembic upgrade head` against the production database before starting the A
 ## Security notes
 
 - Never commit `.env` files or raw device API keys.
-- Use HTTPS in production.
-- Use a strong unique `SECRET_KEY`.
+- Use HTTPS in production. Signed requests supplement TLS; they do not replace it.
+- Production startup rejects short JWT secrets, wildcard CORS and disabled device request signing.
+- JWTs contain issuer, audience, issued-at, not-before and unique token identifiers.
 - Device API keys are stored as hashes by the backend.
+- Device telemetry supports HMAC integrity signatures, timestamp freshness checks, durable nonce replay protection, event idempotency and per-device rate limits.
 - The included ML model is a prototype trained on synthetic data and should be improved with validated field telemetry before safety-sensitive operational use.
 
 ## Development status
 
-Pass 1 established environment-based configuration and deployment foundations. Pass 2 adds device fleet management, hardware telemetry provenance, a stricter alert lifecycle, role-aware frontend actions and automated backend regression tests. Production security hardening, deployment packaging and final end-to-end release verification remain before the v1.0 MVP release.
+Pass 1 established environment-based configuration and deployment foundations. Pass 2 added device fleet management, telemetry provenance, a stricter alert lifecycle and automated regression tests. Pass 3 adds signed/replay-resistant device ingestion, event idempotency, rate limiting, production configuration validation, security headers, database readiness checks, Docker packaging, CI and deployment documentation. The remaining work before v1.0 is final end-to-end release verification and deployment smoke testing.
+
+
+## Additional documentation
+
+- `docs/DEVICE_PROTOCOL.md` — signed device telemetry protocol and retry behavior.
+- `docs/DEPLOYMENT.md` — production environment, database and deployment checklist.

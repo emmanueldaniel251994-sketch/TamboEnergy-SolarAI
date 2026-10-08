@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.models.telemetry import Telemetry
@@ -24,6 +26,8 @@ def process_telemetry(
     db: Session,
     telemetry: TelemetryCreate,
     device_id: int | None = None,
+    device_event_id: str | None = None,
+    device_timestamp: datetime | None = None,
 ) -> Telemetry:
     """
     Process and store telemetry through the common
@@ -196,6 +200,8 @@ def process_telemetry(
     new_record = Telemetry(
         solar_system_id=telemetry.solar_system_id,
         device_id=device_id,
+        device_event_id=device_event_id,
+        device_timestamp=device_timestamp,
 
         pv_voltage=telemetry.pv_voltage,
         pv_current=telemetry.pv_current,

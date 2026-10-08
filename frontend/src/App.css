@@ -2827,11 +2827,20 @@
 }
 
 .telemetry-source-card {
-  max-width: 360px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   padding: 16px;
   background: #f7faf9;
   border: 1px solid #e7efec;
   border-radius: 9px;
+}
+
+.telemetry-source-card > div {
+  min-width: 0;
+  padding: 10px;
+  background: #fff;
+  border-radius: 7px;
 }
 
 @media (max-width: 900px) {
@@ -2847,6 +2856,10 @@
 }
 
 @media (max-width: 650px) {
+  .telemetry-source-card {
+    grid-template-columns: 1fr;
+  }
+
   .device-card-header,
   .alert-workflow-bar {
     flex-direction: column;
