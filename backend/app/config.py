@@ -26,8 +26,7 @@ def _int_env(name: str, default: int) -> int:
 
 
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
-APP_VERSION = os.getenv("APP_VERSION", "1.0.0-rc1").strip()
-
+APP_VERSION = os.getenv("APP_VERSION", "1.0.0").strip()
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "sqlite:///./tamboenergy_solarai.db",
