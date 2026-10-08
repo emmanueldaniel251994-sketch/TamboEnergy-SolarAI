@@ -162,8 +162,9 @@ Run `alembic upgrade head` against the production database before starting the A
 
 ## Development status
 
-Pass 1 established environment-based configuration and deployment foundations. Pass 2 added device fleet management, telemetry provenance, a stricter alert lifecycle and automated regression tests. Pass 3 adds signed/replay-resistant device ingestion, event idempotency, rate limiting, production configuration validation, security headers, database readiness checks, Docker packaging, CI and deployment documentation. The remaining work before v1.0 is final end-to-end release verification and deployment smoke testing.
+TamboEnergy SolarAI v1.0.0 MVP has completed end-to-end local release verification. The platform includes secure device telemetry ingestion, live monitoring, rule-based and ML-assisted fault detection, alert lifecycle management, diagnostics, maintenance tracking, analytics, device fleet management, telemetry provenance, automated regression tests, CI, Docker packaging and production configuration support.
 
+The current machine-learning model remains a prototype trained on synthetic data and should be improved with validated real-world field telemetry before safety-sensitive operational use.
 
 ## Additional documentation
 
