@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -17,6 +15,10 @@ from app.security import (
 )
 
 from app.services.audit import log_action
+from app.services.alert_lifecycle import (
+    acknowledge_alert_record,
+    resolve_alert_record,
+)
 
 
 router = APIRouter(
@@ -161,14 +163,13 @@ def acknowledge_alert(
             detail="Alert not found"
         )
 
-    if alert.status == "resolved":
+    try:
+        acknowledge_alert_record(alert)
+    except ValueError as error:
         raise HTTPException(
             status_code=400,
-            detail="Resolved alert cannot be acknowledged"
-        )
-
-    alert.status = "acknowledged"
-    alert.acknowledged_at = datetime.now(timezone.utc)
+            detail=str(error),
+        ) from error
 
     log_action(
         db=db,
@@ -217,11 +218,13 @@ def resolve_alert(
             detail="Alert not found"
         )
 
-    if alert.status == "resolved":
-        return alert
-
-    alert.status = "resolved"
-    alert.resolved_at = datetime.now(timezone.utc)
+    try:
+        resolve_alert_record(alert)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
 
     log_action(
         db=db,

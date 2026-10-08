@@ -91,3 +91,9 @@ class Device(Base):
     solar_system = relationship(
         "SolarSystem",
     )
+
+    telemetry_records = relationship(
+        "Telemetry",
+        back_populates="device",
+        passive_deletes=True,
+    )

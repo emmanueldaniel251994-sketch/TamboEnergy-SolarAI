@@ -158,6 +158,7 @@ def create_telemetry(
 )
 def get_telemetry(
     solar_system_id: int | None = None,
+    device_id: int | None = None,
     limit: int = 100,
 
     db: Session = Depends(
@@ -216,6 +217,15 @@ def get_telemetry(
             Telemetry.solar_system_id.in_(
                 customer_system_ids
             )
+        )
+
+    # ========================================================
+    # OPTIONAL DEVICE FILTER
+    # ========================================================
+
+    if device_id is not None:
+        query = query.filter(
+            Telemetry.device_id == device_id
         )
 
     # ========================================================

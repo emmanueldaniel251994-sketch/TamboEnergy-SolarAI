@@ -8,6 +8,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -16,6 +17,13 @@ from app.database import Base
 
 class Telemetry(Base):
     __tablename__ = "telemetry"
+    __table_args__ = (
+        UniqueConstraint(
+            "device_id",
+            "device_event_id",
+            name="uq_telemetry_device_event",
+        ),
+    )
 
     id = Column(
         Integer,
@@ -30,6 +38,34 @@ class Telemetry(Base):
             ondelete="CASCADE",
         ),
         nullable=False,
+        index=True,
+    )
+
+    # Device provenance is optional because telemetry may also
+    # be created manually by an authenticated technician.
+    device_id = Column(
+        Integer,
+        ForeignKey(
+            "devices.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    # Optional gateway-generated event identifier. Together with device_id
+    # it provides idempotency for retries after network interruptions.
+    device_event_id = Column(
+        String(100),
+        nullable=True,
+        index=True,
+    )
+
+    # Timestamp supplied by a signed device request. This is separate from
+    # created_at, which records when SolarAI persisted the telemetry.
+    device_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=True,
         index=True,
     )
 
@@ -168,4 +204,9 @@ class Telemetry(Base):
 
     solar_system = relationship(
         "SolarSystem"
+    )
+
+    device = relationship(
+        "Device",
+        back_populates="telemetry_records",
     )

@@ -1,6 +1,5 @@
+import { API_BASE_URL } from "../config";
 import { useCallback, useEffect, useState } from "react";
-
-const API_BASE_URL = "http://127.0.0.1:8000";
 
 function Telemetry({ token }) {
     const [solarSystems, setSolarSystems] = useState([]);
@@ -604,6 +603,39 @@ function Telemetry({ token }) {
                                         {telemetry.error_code || "None"}
                                     </strong>
                                 </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="telemetry-section telemetry-source-section">
+                        <div className="telemetry-section-heading">
+                            <div>
+                                <h2>Telemetry Source</h2>
+                                <p>Provenance for the latest reading.</p>
+                            </div>
+                        </div>
+                        <div className="telemetry-source-card">
+                            <div>
+                                <span>Source</span>
+                                <strong>
+                                    {telemetry.device_id
+                                        ? `Device #${telemetry.device_id}`
+                                        : "Manual / API"}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Device Event ID</span>
+                                <strong>
+                                    {telemetry.device_event_id || "—"}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Device Timestamp</span>
+                                <strong>
+                                    {formatDate(telemetry.device_timestamp)}
+                                </strong>
                             </div>
                         </div>
                     </section>

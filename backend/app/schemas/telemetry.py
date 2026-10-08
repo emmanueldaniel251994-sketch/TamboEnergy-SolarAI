@@ -76,6 +76,9 @@ class TelemetryCreate(BaseModel):
 
 class TelemetryResponse(TelemetryCreate):
     id: int
+    device_id: Optional[int] = None
+    device_event_id: Optional[str] = None
+    device_timestamp: Optional[datetime] = None
 
     fault_type: Optional[str] = None
     fault_severity: Optional[str] = None

@@ -5,6 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.config import DATABASE_URL
 from app.database import Base
 
 from app.models.customer import Customer
@@ -16,8 +17,16 @@ from app.models.audit_log import AuditLog
 from app.models.telemetry import Telemetry
 from app.models.alert import Alert
 from app.models.device import Device
+from app.models.device_request_nonce import DeviceRequestNonce
 
 config = context.config
+
+# Keep Alembic on the same database URL used by the application.
+# Percent signs must be escaped for ConfigParser interpolation.
+config.set_main_option(
+    "sqlalchemy.url",
+    DATABASE_URL.replace("%", "%%"),
+)
 
 
 if config.config_file_name is not None:

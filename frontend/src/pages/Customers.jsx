@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../config";
 import { useCallback, useEffect, useState } from "react";
 
 function Customers({ token }) {
@@ -31,7 +32,7 @@ function Customers({ token }) {
       setError("");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/customers/",
+        `${API_BASE_URL}/customers/`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -171,8 +172,8 @@ function Customers({ token }) {
       const isEditing = editingId !== null;
 
       const url = isEditing
-        ? `http://127.0.0.1:8000/customers/${editingId}`
-        : "http://127.0.0.1:8000/customers/";
+        ? `${API_BASE_URL}/customers/${editingId}`
+        : `${API_BASE_URL}/customers/`;
 
       const response = await fetch(url, {
         method: isEditing ? "PUT" : "POST",
@@ -247,7 +248,7 @@ function Customers({ token }) {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/customers/${customer.id}`,
+        `${API_BASE_URL}/customers/${customer.id}`,
         {
           method: "DELETE",
 
