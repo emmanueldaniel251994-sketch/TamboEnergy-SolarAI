@@ -21,6 +21,7 @@ from app.routes.telemetry import router as telemetry_router
 from app.routes.device_telemetry import router as device_telemetry_router
 from app.routes.device import router as device_router
 from app.routes import diagnostics, alerts, dashboard
+from app.routes.ai_assistant import router as ai_assistant_router
 
 
 validate_runtime_config()
@@ -81,6 +82,7 @@ app.include_router(device_telemetry_router)
 app.include_router(diagnostics.router)
 app.include_router(alerts.router)
 app.include_router(dashboard.router)
+app.include_router(ai_assistant_router)
 
 
 @app.get("/")

@@ -9,6 +9,7 @@ import Maintenance from "./pages/Maintenance";
 import Analytics from "./pages/Analytics";
 import Telemetry from "./pages/Telemetry";
 import Devices from "./pages/Devices";
+import AIAssistant from "./pages/AIAssistant";
 
 function App() {
   // =========================================================
@@ -485,6 +486,7 @@ function App() {
             Analytics
           </button>
 
+          <button className={activePage === "ai-assistant" ? "active" : ""} onClick={() => setActivePage("ai-assistant")}>AI Assistant</button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -508,7 +510,9 @@ function App() {
           MAIN CONTENT
           ===================================================== */}
       <main className="dashboard-main">
-        {activePage === "systems" ? (
+        {activePage === "ai-assistant" ? (
+          <AIAssistant token={token} />
+        ) : activePage === "systems" ? (
           <SolarSystems token={token} />
         ) : activePage === "telemetry" ? (
           <Telemetry token={token} />
