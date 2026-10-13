@@ -4,6 +4,7 @@ import TelemetryAdvice from "./TelemetryAdvice";
 import "./AIAssistant.css";
 
 const fields = [
+  ["equipment_model_id", "Registered equipment for fault-code lookup", 1],
   ["inverter_brand", "Inverter manufacturer"],
   ["inverter_model", "Inverter model"],
   ["battery_technology", "Battery chemistry"],
@@ -17,6 +18,22 @@ const fields = [
 function Guidance({ result }) {
   if (!result) return null;
   return <div className="assistant-guidance">
+    {result.manufacturer_evidence && <section className="assistant-manufacturer-evidence">
+      <h3>Manufacturer evidence</h3>
+      <p>{result.manufacturer_evidence.message}</p>
+      {result.manufacturer_evidence.grounded && <>
+        <p><strong>{result.manufacturer_evidence.manufacturer_name} · {result.manufacturer_evidence.model_name}</strong></p>
+        <p>Code: {result.manufacturer_evidence.fault_code} · Checked: {result.manufacturer_evidence.checked_at}</p>
+        <ul>{result.manufacturer_evidence.matches.map((match, index) => <li key={index}>
+          {match.description}{match.description_truncated && " (excerpt)"} · {match.severity}
+        </li>)}</ul>
+        <ul>{result.manufacturer_evidence.sources.map((source, index) => <li key={index}>
+          {/^https?:\/\//i.test(source.source_url || "") ? <a href={source.source_url} target="_blank" rel="noopener noreferrer">{source.title}</a> : source.title}
+          {source.document_version && ` · Version ${source.document_version}`}
+        </li>)}</ul>
+        <p>{result.manufacturer_evidence.safety_notice}</p>
+      </>}
+    </section>}
     {result.safety_notice && <p className="assistant-safety"><strong>Safety: </strong>{result.safety_notice}</p>}
     {[
       ["next_questions", "Next questions"],
@@ -46,6 +63,8 @@ export default function AIAssistant({ token }) {
   const [listError, setListError] = useState("");
   const [busy, setBusy] = useState(false);
   const [listing, setListing] = useState(true);
+  const [models, setModels] = useState([]);
+  const [modelError, setModelError] = useState("");
   const active = useRef(true);
   const inFlight = useRef(false);
 
@@ -89,6 +108,13 @@ export default function AIAssistant({ token }) {
     }).finally(() => {
       if (!controller.signal.aborted) setListing(false);
     });
+    fetch(`${API_BASE_URL}/equipment-models`, {
+      signal: controller.signal, headers: { Authorization: `Bearer ${token}` },
+    }).then(async res => {
+      if (!res.ok) throw Error("Registered models could not be loaded. General guidance remains available.");
+      const data = await res.json();
+      if (!controller.signal.aborted) { setModels(data); setModelError(""); }
+    }).catch(err => { if (!controller.signal.aborted) setModelError(err.message); });
     return () => { active.current = false; controller.abort(); };
   }, [token]);
 
@@ -121,6 +147,7 @@ export default function AIAssistant({ token }) {
     // Send only edited fields so saved readings never override newly extracted measurements.
     const changes = {};
     for (const [key, , min, max] of fields) {
+      if (key === "equipment_model_id" && key in updates && updates[key] === "") { changes[key] = null; continue; }
       if (!(key in updates) || String(updates[key]).trim() === "") continue;
       if (min === undefined) changes[key] = updates[key].trim();
       else {
@@ -171,6 +198,7 @@ export default function AIAssistant({ token }) {
         <div className="assistant-messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions">
           {messages.map((message, index) => <article key={message.id || `new-${index}`} className={`assistant-message assistant-${message.role}`}>
             <strong>{message.role === "user" ? "You" : "SolarAI"}</strong>
+            {message.response_metadata?.manufacturer_evidence && <h3>General guidance</h3>}
             <p className="response">{message.content}</p>
             {message.role === "assistant" && <Guidance result={message.response_metadata} />}
           </article>)}
@@ -179,12 +207,19 @@ export default function AIAssistant({ token }) {
           <fieldset disabled={busy}>
             <legend>Equipment details (optional)</legend>
             <p>Leave unknown values empty. Enter only reported readings; these details are not manufacturer verification.</p>
+            <p>Select the exact registered equipment model and enter its exact fault code to request manufacturer evidence. Evidence is rechecked when you reopen the case or send a message.</p>
+            {modelError && <p role="status">{modelError}</p>}
             <div className="assistant-equipment">{fields.map(([key, label, min, max]) => <label key={key} htmlFor={`equipment-${key}`}>
-              {label}<input id={`equipment-${key}`} type={min === undefined ? "text" : "number"}
+              {label}{key === "equipment_model_id" ? <select id={`equipment-${key}`} value={updates[key] ?? profile[key] ?? ""}
+                onChange={event => setUpdates(previous => ({ ...previous, [key]: event.target.value }))}>
+                <option value="">General guidance / no registered model</option>
+                {(updates[key] ?? profile[key]) && !models.some(model => model.id === Number(updates[key] ?? profile[key])) && <option value={updates[key] ?? profile[key]}>Saved model #{updates[key] ?? profile[key]}</option>}
+                {models.map(model => <option key={model.id} value={model.id}>{model.model_name} · {model.equipment_type} · #{model.id}</option>)}
+              </select> : <input id={`equipment-${key}`} type={min === undefined ? "text" : "number"}
                 min={min} max={max} step={min === undefined ? undefined : "any"}
-                maxLength={key === "fault_code" ? 30 : key === "battery_technology" ? 100 : 120}
+                maxLength={key === "fault_code" ? 100 : key === "battery_technology" ? 100 : 120}
                 value={updates[key] ?? profile[key] ?? ""}
-                onChange={event => setUpdates(previous => ({ ...previous, [key]: event.target.value }))} />
+                onChange={event => setUpdates(previous => ({ ...previous, [key]: event.target.value }))} />}
             </label>)}</div>
           </fieldset>
           <label htmlFor="question">{sessionId ? "Follow-up message" : "Describe the fault"}</label>

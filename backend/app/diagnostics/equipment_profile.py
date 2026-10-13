@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 
 class EquipmentProfile(BaseModel):
+    equipment_model_id: int | None = Field(default=None, gt=0)
     system_type: Literal['residential', 'commercial', 'industrial', 'utility', 'unknown'] = 'unknown'
     rated_capacity_kva: float | None = Field(default=None, gt=0)
     phase_configuration: Literal['single_phase', 'three_phase', 'unknown'] = 'unknown'
@@ -30,7 +31,7 @@ class EquipmentProfile(BaseModel):
     pv_voltage_v: float | None = Field(default=None, ge=0)
     pv_power_w: float | None = Field(default=None, ge=0)
     battery_soc_percent: float | None = Field(default=None, ge=0, le=100)
-    fault_code: str | None = Field(default=None, max_length=30)
+    fault_code: str | None = Field(default=None, max_length=100)
     fault_category: Literal['fault', 'warning', 'unknown'] = 'unknown'
     symptoms: str | None = Field(default=None, max_length=2000)
     grid_or_generator: Literal['grid', 'generator', 'both', 'none', 'unknown'] = 'unknown'

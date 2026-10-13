@@ -172,3 +172,4 @@ The current machine-learning model remains a prototype trained on synthetic data
 - `docs/DEPLOYMENT.md` — production environment, database and deployment checklist.
 - `docs/PDF_PROCESSING_LIMITS.md` — bounded PDF workers, production opt-in, and remaining isolation requirements.
 - `docs/PDF_REVIEW_DATABASE.md` — transactional review history, required schema migration, and legacy imports.
+- `docs/SAVED_MANUFACTURER_EVIDENCE.md` — exact-model evidence, safety gates, and revocation-aware saved conversations.

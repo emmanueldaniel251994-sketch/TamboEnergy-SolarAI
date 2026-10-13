@@ -5,6 +5,7 @@ from app.models.ai_conversation import AIConversationSession, AIConversationMess
 from app.diagnostics.conversation import ConversationRequest, converse
 from app.diagnostics.equipment_profile import EquipmentProfile
 from app.diagnostics.information_extractor import extract_equipment_updates
+from app.services.session_manufacturer_evidence import attach_evidence
 
 
 def _utc():
@@ -42,7 +43,9 @@ def run_turn(db: Session, session: AIConversationSession, question: str, updates
             profile=profile,
             updates=merged_updates,
         )
-    )	
+    )
+    if result.profile.equipment_model_id:
+        result = attach_evidence(db, result, diagnostic_question)
 
     # Preserve original symptom for short follow-up messages unless explicitly updated.
     session.equipment_profile = result.profile.model_dump(mode='json')

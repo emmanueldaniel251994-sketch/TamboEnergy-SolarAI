@@ -9,6 +9,7 @@ from app.diagnostics.equipment_profile import EquipmentProfile
 from app.diagnostics.conversation import ConversationResponse
 from app.models.ai_conversation import AIConversationSession, AIConversationMessage
 from app.services.ai_sessions import get_owned, run_turn
+from app.services.session_manufacturer_evidence import attach_evidence, refresh_stored_evidence
 
 router = APIRouter(prefix='/ai-assistant/sessions', tags=['AI Assistant'])
 
@@ -46,7 +47,12 @@ class SessionDetail(BaseModel):
 def create_session(data: StartSession, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Diagnose first to avoid persisting empty sessions on validation/engine failures.
     from app.diagnostics.conversation import ConversationRequest, converse
-    result = converse(ConversationRequest(question=data.question, profile=data.profile))
+    try:
+        result = converse(ConversationRequest(question=data.question, profile=data.profile))
+        result = attach_evidence(db, result, data.question)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     session = AIConversationSession(user_id=user.id, title=data.question[:200],
         original_complaint=data.question, equipment_profile=result.profile.model_dump(mode='json'))
     db.add(session)
@@ -72,7 +78,14 @@ def retrieve_session(session_id: int, db: Session = Depends(get_db), user=Depend
         raise HTTPException(status_code=404, detail='Conversation not found')
     messages = db.query(AIConversationMessage).filter(AIConversationMessage.session_id == session.id).order_by(
         AIConversationMessage.id.asc()).limit(500).all()
-    return SessionDetail(session=session, messages=messages)
+    cache = {}
+    views = []
+    for row in messages:
+        view = MessageView.model_validate(row)
+        if view.role == 'assistant':
+            view.response_metadata = refresh_stored_evidence(db, view.response_metadata, cache)
+        views.append(view)
+    return SessionDetail(session=session, messages=views)
 
 @router.post('/{session_id}/messages', response_model=TurnResponse)
 def continue_session(session_id: int, data: ContinueSession, db: Session = Depends(get_db), user=Depends(get_current_user)):

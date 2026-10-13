@@ -89,3 +89,50 @@ describe('saved assistant cases', () => {
     expect(payloads).toEqual([]);
   });
 });
+
+function modelAwareMock() {
+  const original = fetch.getMockImplementation();
+  fetch.mockImplementation(async (url, options = {}) => {
+    if (new URL(url).pathname === '/equipment-models') return {ok:true,status:200,json:async()=>[{id:7,model_name:'Registry inverter',equipment_type:'inverter'}]};
+    const res = await original(url, options);
+    if (options.method === 'POST') {
+      const data = await res.json();
+      if (data.response.profile.equipment_model_id && data.response.profile.fault_code) data.response.manufacturer_evidence = {
+        grounded:true,status:'verified',message:'Verified exact-model record.',manufacturer_name:'Test maker',model_name:'Registry inverter',
+        fault_code:'F01',checked_at:'2026-10-13T18:00:00+00:00',matches:[{description:'Communication alarm.',severity:'warning'}],
+        sources:[{title:'Official evidence manual',source_url:'https://manufacturer.example/manual',document_version:'1'}],safety_notice:'Consult an authorized technician.',
+      };
+      return {...res,json:async()=>data};
+    }
+    return res;
+  });
+}
+
+it('sends selected model and exact code and renders the evidence citation', async () => {
+  modelAwareMock();
+  await start();
+  await screen.findByRole('option',{name:'Registry inverter · inverter · #7'});
+  fireEvent.change(screen.getByLabelText('Registered equipment for fault-code lookup'),{target:{value:'7'}});
+  fireEvent.change(screen.getByLabelText('Fault or warning code'),{target:{value:'F01'}});
+  fireEvent.change(screen.getByLabelText('Follow-up message'),{target:{value:'Please explain this code'}});
+  fireEvent.click(screen.getByRole('button',{name:'Send follow-up'}));
+  await screen.findByRole('link',{name:'Official evidence manual'});
+  expect(payloads[1].updates).toEqual({equipment_model_id:7,fault_code:'F01'});
+  expect(screen.getByRole('link',{name:'Official evidence manual'}).getAttribute('href')).toBe('https://manufacturer.example/manual');
+});
+
+it('explicitly clears the model selection rather than resending the saved model', async () => {
+  modelAwareMock();
+  await start();
+  fireEvent.change(screen.getByLabelText('Registered equipment for fault-code lookup'),{target:{value:'7'}});
+  fireEvent.change(screen.getByLabelText('Fault or warning code'),{target:{value:'F01'}});
+  fireEvent.change(screen.getByLabelText('Follow-up message'),{target:{value:'Use this exact model'}});
+  fireEvent.click(screen.getByRole('button',{name:'Send follow-up'}));
+  await screen.findByRole('link',{name:'Official evidence manual'});
+  await waitFor(() => expect(screen.getByRole('button',{name:'Send follow-up'}).disabled).toBe(false));
+  fireEvent.change(screen.getByLabelText('Registered equipment for fault-code lookup'),{target:{value:''}});
+  fireEvent.change(screen.getByLabelText('Follow-up message'),{target:{value:'Continue general guidance'}});
+  fireEvent.click(screen.getByRole('button',{name:'Send follow-up'}));
+  await screen.findByText('Continue general guidance');
+  expect(payloads[2].updates).toEqual({equipment_model_id:null});
+});

@@ -13,6 +13,8 @@ class ConversationRequest(BaseModel):
 
 
 class ConversationResponse(BaseModel):
+    quality_review_passed: bool = False
+    manufacturer_evidence: dict[str, Any] | None = None
     message: str
     status: str
     profile: EquipmentProfile
@@ -73,7 +75,7 @@ def converse(request: ConversationRequest) -> ConversationResponse:
     if unknown:
         raise ValueError('Unknown profile fields: ' + ', '.join(sorted(unknown)))
     for field, value in request.updates.items():
-        if value is not None:
+        if value is not None or field == 'equipment_model_id':
             current[field] = value
     profile = EquipmentProfile.model_validate(current)
     review = diagnose_checked(DiagnosticRequest(question=request.question, profile=profile))
@@ -87,6 +89,7 @@ def converse(request: ConversationRequest) -> ConversationResponse:
     elif result.possible_causes and approved:
         summary += '\n\nPossible causes: ' + '; '.join(result.possible_causes)
     return ConversationResponse(
+        quality_review_passed=approved,
         message=summary, status=result.status, profile=profile,
         next_questions=questions,
         possible_causes=result.possible_causes if approved else [],
