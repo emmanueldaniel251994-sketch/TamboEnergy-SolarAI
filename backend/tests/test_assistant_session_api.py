@@ -88,3 +88,8 @@ def test_other_user_cannot_read_or_continue_case(api):
 def test_blank_question_rejected(api):
     assert api.post('/ai-assistant/sessions', json={'question': ''}).status_code == 422
     assert api.get('/ai-assistant/sessions').json() == []
+
+
+def test_too_short_diagnostic_question_is_a_controlled_validation_error(api):
+    assert api.post('/ai-assistant/sessions', json={'question': 'PV'}).status_code == 422
+    assert api.get('/ai-assistant/sessions').json() == []
