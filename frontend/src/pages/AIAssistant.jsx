@@ -1,41 +1,200 @@
-import {useState} from "react";
-import {API_BASE_URL} from "../config";
+import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "../config";
+import TelemetryAdvice from "./TelemetryAdvice";
 import "./AIAssistant.css";
-export default function AIAssistant({token}) {
- const [question,setQuestion]=useState("");
- const [telemetry,setTelemetry]=useState("");
- const [result,setResult]=useState(null);
- const [error,setError]=useState("");
- const [busy,setBusy]=useState(false);
- async function submit(e) {
-  e.preventDefault();setBusy(true);setError("");setResult(null);
-  try {
-   const payload={question};
-   if(telemetry.trim()) {
-    const n=Number(telemetry);
-    if(!Number.isInteger(n)||n<1) throw Error("Invalid telemetry ID");
-    payload.telemetry_id=n;
-   }
-   const res=await fetch(`${API_BASE_URL}/ai-assistant/ask`,{
-    method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
-    body:JSON.stringify(payload)});
-   const data=await res.json();
-   if(!res.ok) throw Error(typeof data.detail==="string"?data.detail:"Request failed");
-   setResult(data.response);
-  }catch(e){setError(e.message)}finally{setBusy(false)}
- }
- return <section className="solarai-assistant">
-  <h1>SolarAI Troubleshooting Assistant</h1>
-  <p>Get safety-conscious advice based on available diagnostic evidence.</p>
-  <form onSubmit={submit}>
-   <label htmlFor="question">Describe the fault</label>
-   <textarea id="question" required minLength={5} maxLength={2000} rows={5} value={question} onChange={e=>setQuestion(e.target.value)}/>
-   <label htmlFor="telemetry">Telemetry ID (optional)</label>
-   <input id="telemetry" type="number" min="1" value={telemetry} onChange={e=>setTelemetry(e.target.value)}/>
-   <button disabled={busy}>{busy?"Analysing...":"Ask SolarAI"}</button>
-  </form>
-  {error&&<p role="alert">{error}</p>}
-  {result&&<article aria-live="polite"><h2>Guidance</h2><small>{result.mode}</small><p className="response">{result.answer}</p>
-   <ul>{result.sources.map(s=><li key={s.id}>{s.title} ({s.id})</li>)}</ul></article>}
- </section>
+
+const fields = [
+  ["inverter_brand", "Inverter manufacturer"],
+  ["inverter_model", "Inverter model"],
+  ["battery_technology", "Battery chemistry"],
+  ["battery_model", "Battery model"],
+  ["fault_code", "Fault or warning code"],
+  ["battery_soc_percent", "Battery charge (%)", 0, 100],
+  ["pv_voltage_v", "PV voltage (V)", 0],
+  ["pv_power_w", "PV power (W)", 0],
+];
+
+function Guidance({ result }) {
+  if (!result) return null;
+  return <div className="assistant-guidance">
+    {result.safety_notice && <p className="assistant-safety"><strong>Safety: </strong>{result.safety_notice}</p>}
+    {[
+      ["next_questions", "Next questions"],
+      ["possible_causes", "Possible causes"],
+      ["recommended_checks", "Recommended checks"],
+      ["suggested_solutions", "Suggested solutions"],
+    ].map(([key, title]) => result[key]?.length > 0 && <div key={key}>
+      <h3>{title}</h3><ul>{result[key].map((item, index) => <li key={index}>{item}</li>)}</ul>
+    </div>)}
+    {result.sources?.length > 0 && <div><h3>Evidence references</h3><ul>{result.sources.map((source, index) => {
+      const url = source.source_url || source.url;
+      return <li key={index}>{/^https?:\/\//i.test(url || "")
+        ? <a href={url} target="_blank" rel="noopener noreferrer">{source.title || source.id || "Source"}</a>
+        : source.title || source.id || "Source reference"}</li>;
+    })}</ul></div>}
+  </div>;
+}
+
+export default function AIAssistant({ token }) {
+  const [sessions, setSessions] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [profile, setProfile] = useState({});
+  const [updates, setUpdates] = useState({});
+  const [question, setQuestion] = useState("");
+  const [error, setError] = useState("");
+  const [listError, setListError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [listing, setListing] = useState(true);
+  const active = useRef(true);
+  const inFlight = useRef(false);
+
+  async function request(path = "", options = {}) {
+    const res = await fetch(`${API_BASE_URL}/ai-assistant/sessions${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (res.status === 401) throw Error("Your session has expired. Sign in again.");
+      throw Error(typeof data?.detail === "string" ? data.detail : "Unable to complete the request. Please try again.");
+    }
+    if (data === null) throw Error("The server returned an unreadable response.");
+    return data;
+  }
+
+  async function refreshSessions() {
+    setListing(true);
+    try {
+      const data = await request();
+      if (active.current) { setSessions(data); setListError(""); }
+    } catch (err) {
+      if (active.current) setListError(err.message);
+    } finally {
+      if (active.current) setListing(false);
+    }
+  }
+
+  useEffect(() => {
+    active.current = true;
+    const controller = new AbortController();
+    fetch(`${API_BASE_URL}/ai-assistant/sessions`, {
+      signal: controller.signal, headers: { Authorization: `Bearer ${token}` },
+    }).then(async res => {
+      if (!res.ok) throw Error(res.status === 401 ? "Your session has expired. Sign in again." : "Unable to load saved conversations.");
+      const data = await res.json();
+      if (!controller.signal.aborted) { setSessions(data); setListError(""); }
+    }).catch(err => {
+      if (!controller.signal.aborted) setListError(err.message);
+    }).finally(() => {
+      if (!controller.signal.aborted) setListing(false);
+    });
+    return () => { active.current = false; controller.abort(); };
+  }, [token]);
+
+  function newConversation() {
+    if (inFlight.current) return;
+    setSessionId(null); setMessages([]); setProfile({}); setUpdates({}); setQuestion(""); setError("");
+  }
+
+  async function openSession(id) {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError("");
+    try {
+      const data = await request(`/${id}`);
+      if (!active.current) return;
+      setSessionId(data.session.id); setMessages(data.messages);
+      setProfile(data.session.equipment_profile); setUpdates({}); setQuestion("");
+    } catch (err) {
+      if (active.current) setError(err.message);
+    } finally {
+      inFlight.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (inFlight.current) return;
+    const text = question.trim();
+    if (text.length < 2) { setError("Enter at least two characters describing the problem."); return; }
+    // Send only edited fields so saved readings never override newly extracted measurements.
+    const changes = {};
+    for (const [key, , min, max] of fields) {
+      if (!(key in updates) || String(updates[key]).trim() === "") continue;
+      if (min === undefined) changes[key] = updates[key].trim();
+      else {
+        const value = Number(updates[key]);
+        if (!Number.isFinite(value) || value < min || (max !== undefined && value > max)) {
+          setError("Check the equipment measurements before sending."); return;
+        }
+        changes[key] = value;
+      }
+    }
+    inFlight.current = true; setBusy(true); setError("");
+    try {
+      const data = await request(sessionId ? `/${sessionId}/messages` : "", {
+        method: "POST", body: JSON.stringify(sessionId ? { question: text, updates: changes } : { question: text, profile: changes }),
+      });
+      if (!active.current) return;
+      setSessionId(data.session_id);
+      setProfile(data.response.profile); setUpdates({}); setQuestion("");
+      setMessages(previous => [...previous,
+        { role: "user", content: text },
+        { role: "assistant", content: data.response.message, response_metadata: data.response },
+      ]);
+      await refreshSessions();
+    } catch (err) {
+      if (active.current) setError(err.message);
+    } finally {
+      inFlight.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+
+  return <section className="solarai-assistant">
+    <h1>SolarAI Troubleshooting Assistant</h1>
+    <p>Keep equipment details and follow-up messages together in a saved case.</p>
+    <p className="assistant-safety">Decision support only. For smoke, sparks, or immediate danger, move away and contact emergency services or an authorized technician.</p>
+    <div className="assistant-layout">
+      <aside className="assistant-history" aria-label="Saved conversations">
+        <button type="button" disabled={busy} onClick={newConversation}>New conversation</button>
+        <h2>Saved cases</h2>
+        {listing && <p role="status">Loading cases…</p>}
+        {listError && <div role="alert"><p>{listError}</p><button type="button" disabled={listing || busy} onClick={refreshSessions}>Retry loading</button></div>}
+        {!listing && !listError && sessions.length === 0 && <p>Your first case will appear here after you send a message.</p>}
+        <ul>{sessions.map(session => <li key={session.id}><button type="button" disabled={busy}
+          aria-current={session.id === sessionId ? "true" : undefined} onClick={() => openSession(session.id)}>{session.title}</button></li>)}</ul>
+      </aside>
+      <div className="assistant-case">
+        <h2>{sessionId ? `Case #${sessionId}` : "New case"}</h2>
+        <div className="assistant-messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions">
+          {messages.map((message, index) => <article key={message.id || `new-${index}`} className={`assistant-message assistant-${message.role}`}>
+            <strong>{message.role === "user" ? "You" : "SolarAI"}</strong>
+            <p className="response">{message.content}</p>
+            {message.role === "assistant" && <Guidance result={message.response_metadata} />}
+          </article>)}
+        </div>
+        <form onSubmit={submit} aria-busy={busy}>
+          <fieldset disabled={busy}>
+            <legend>Equipment details (optional)</legend>
+            <p>Leave unknown values empty. Enter only reported readings; these details are not manufacturer verification.</p>
+            <div className="assistant-equipment">{fields.map(([key, label, min, max]) => <label key={key} htmlFor={`equipment-${key}`}>
+              {label}<input id={`equipment-${key}`} type={min === undefined ? "text" : "number"}
+                min={min} max={max} step={min === undefined ? undefined : "any"}
+                maxLength={key === "fault_code" ? 30 : key === "battery_technology" ? 100 : 120}
+                value={updates[key] ?? profile[key] ?? ""}
+                onChange={event => setUpdates(previous => ({ ...previous, [key]: event.target.value }))} />
+            </label>)}</div>
+          </fieldset>
+          <label htmlFor="question">{sessionId ? "Follow-up message" : "Describe the fault"}</label>
+          <textarea id="question" required minLength={2} maxLength={2000} rows={4} disabled={busy}
+            value={question} onChange={event => setQuestion(event.target.value)} placeholder="For example: My inverter is not charging from solar." />
+          <button disabled={busy}>{busy ? "Please wait…" : sessionId ? "Send follow-up" : "Start saved conversation"}</button>
+          {error && <p role="alert">{error}</p>}
+        </form>
+      </div>
+    </div>
+    <details className="assistant-legacy"><summary>Ask about a telemetry record</summary><TelemetryAdvice token={token} /></details>
+  </section>;
 }
