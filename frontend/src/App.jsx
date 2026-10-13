@@ -10,6 +10,7 @@ import Analytics from "./pages/Analytics";
 import Telemetry from "./pages/Telemetry";
 import Devices from "./pages/Devices";
 import AIAssistant from "./pages/AIAssistant";
+import ManufacturerKnowledge from "./pages/ManufacturerKnowledge";
 
 function App() {
   // =========================================================
@@ -487,6 +488,7 @@ function App() {
           </button>
 
           <button className={activePage === "ai-assistant" ? "active" : ""} onClick={() => setActivePage("ai-assistant")}>AI Assistant</button>
+          <button className={activePage === "knowledge" ? "active" : ""} onClick={() => setActivePage("knowledge")}>Equipment Knowledge</button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -510,7 +512,9 @@ function App() {
           MAIN CONTENT
           ===================================================== */}
       <main className="dashboard-main">
-        {activePage === "ai-assistant" ? (
+        {activePage === "knowledge" ? (
+          <ManufacturerKnowledge key={token} token={token} role={currentUser?.role} />
+        ) : activePage === "ai-assistant" ? (
           <AIAssistant key={token} token={token} />
         ) : activePage === "systems" ? (
           <SolarSystems token={token} />
