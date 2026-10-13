@@ -8,6 +8,7 @@ from app.models.device import Device
 from app.models.alert import Alert
 
 from app.models.device_request_nonce import DeviceRequestNonce
+from app.models.manufacturer_pdf_review import ManufacturerPDFReview
 
 from app.models.ai_conversation import AIConversationSession, AIConversationMessage
 
