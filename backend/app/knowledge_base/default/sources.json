@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "source_id": "SRC-DEFAULT-001",
+      "title": "Hybrid Solar Inverter User Manual 2KVA/4.2KVA/6.2KVA",
+      "source_type": "manufacturer_user_manual",
+      "original_file": "Hybrid Solar Inverter User Manual-2-6.2K.pdf",
+      "role": "initial_default_reference",
+      "applicability": [
+        "2KVA",
+        "4.2KVA",
+        "6.2KVA"
+      ],
+      "version": null,
+      "status": "partially_verified",
+      "notes": "Model-specific settings and limits must not be generalized to other inverter models."
+    }
+  ]
+}

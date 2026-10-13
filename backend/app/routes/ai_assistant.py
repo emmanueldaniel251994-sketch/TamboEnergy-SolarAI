@@ -1,3 +1,4 @@
+from app.services.manufacturer_ai_bridge import enrich_ai_response
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -13,6 +14,8 @@ router=APIRouter(prefix="/ai-assistant",tags=["AI Assistant"])
 class AskRequest(BaseModel):
     question:str=Field(min_length=5,max_length=2000)
     telemetry_id:int|None=Field(default=None,gt=0)
+    equipment_model_id: int | None = Field(default=None, gt=0)
+    fault_code: str | None = Field(default=None, min_length=1, max_length=100)
 
 @router.post("/ask")
 def ask(data:AskRequest,db:Session=Depends(get_db),user:User=Depends(get_current_user)):
@@ -26,4 +29,11 @@ def ask(data:AskRequest,db:Session=Depends(get_db),user:User=Depends(get_current
             raise HTTPException(403,"Access denied")
         diagnosis=generate_diagnostic(t.final_diagnosis or t.fault_type or "normal",
              t.fault_severity,t.ml_confidence,t.needs_review)
+    if (data.equipment_model_id is None) != (data.fault_code is None):
+        raise HTTPException(422, "equipment_model_id and fault_code must be supplied together")
+    if data.equipment_model_id is not None:
+        grounded = enrich_ai_response(db, data.question, diagnosis, data.equipment_model_id, data.fault_code)
+        if grounded is None:
+            raise HTTPException(404, "Equipment model not found")
+        return {"response": grounded, "telemetry_id": data.telemetry_id}
     return {"response":explain(data.question,diagnosis),"telemetry_id":data.telemetry_id}

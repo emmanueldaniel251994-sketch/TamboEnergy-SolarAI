@@ -13,6 +13,12 @@ if DATABASE_URL.startswith("sqlite"):
         "check_same_thread": False,
     }
 
+elif DATABASE_URL.startswith(("postgresql", "postgres://")):
+    engine_options["use_native_hstore"] = False
+    engine_options["connect_args"] = {
+        "connect_timeout": 15,
+    }
+
 
 engine = create_engine(
     DATABASE_URL,

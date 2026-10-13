@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "knowledge_base": "TamboEnergy SolarAI Default",
+  "records": [
+    {
+      "id": "KB-TRB-001",
+      "symptom": "Unit shuts down during startup",
+      "possible_cause": "Battery voltage too low",
+      "manual_guidance": [
+        "Recharge battery",
+        "Replace battery if necessary"
+      ],
+      "fault_codes": [],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-002",
+      "symptom": "No response after powering on",
+      "possible_cause": "Very low battery voltage, reversed battery polarity, or tripped input protection",
+      "manual_guidance": [
+        "Check battery connections and wiring",
+        "Recharge battery",
+        "Replace battery if necessary"
+      ],
+      "fault_codes": [],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-003",
+      "symptom": "Utility power is present but inverter remains in battery mode",
+      "possible_cause": "Tripped input protection or poor AC input quality",
+      "manual_guidance": [
+        "Check AC breaker and wiring",
+        "Check generator performance if applicable",
+        "Check the selected AC input voltage range"
+      ],
+      "fault_codes": [],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-004",
+      "symptom": "Internal relay switches repeatedly",
+      "possible_cause": "Battery disconnected",
+      "manual_guidance": [
+        "Check battery wiring and connections"
+      ],
+      "fault_codes": [],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-005",
+      "symptom": "Overload fault",
+      "possible_cause": "Connected load exceeds inverter operating limits",
+      "manual_guidance": [
+        "Reduce connected load by switching off equipment"
+      ],
+      "fault_codes": [
+        "14"
+      ],
+      "requires_technician": false,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-006",
+      "symptom": "Output short circuit",
+      "possible_cause": "Output short circuit or abnormal connected load",
+      "manual_guidance": [
+        "Have a qualified technician inspect wiring",
+        "Have a qualified technician identify and isolate abnormal loads"
+      ],
+      "fault_codes": [
+        "12"
+      ],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-007",
+      "symptom": "Inverter overheating",
+      "possible_cause": "Blocked airflow or excessive ambient temperature",
+      "manual_guidance": [
+        "Check for blocked ventilation",
+        "Check ambient temperature"
+      ],
+      "fault_codes": [
+        "05"
+      ],
+      "requires_technician": false,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    },
+    {
+      "id": "KB-TRB-008",
+      "symptom": "High battery voltage",
+      "possible_cause": "Battery overcharging or excessive battery voltage",
+      "manual_guidance": [
+        "Check battery specifications and quantity",
+        "Refer inverter to repair center when required"
+      ],
+      "fault_codes": [
+        "06"
+      ],
+      "requires_technician": true,
+      "topic": "troubleshooting",
+      "source_id": "SRC-DEFAULT-001",
+      "source_pdf_page": 44,
+      "source_printed_page": 42,
+      "scope": "documented_model_family",
+      "verification_status": "verified_from_manual",
+      "safety_note": "Advisory information only. Electrical inspection and repair require a qualified technician."
+    }
+  ],
+  "review_notes": [
+    "The manual's troubleshooting table inconsistently labels codes 51 and 58 as faults.",
+    "The dedicated warning-code table lists codes 51 and 58 as warnings.",
+    "Conflicting classifications require manufacturer verification."
+  ]
+}

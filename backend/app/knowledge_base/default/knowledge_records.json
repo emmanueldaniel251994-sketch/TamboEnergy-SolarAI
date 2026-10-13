@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "records": [
+    {
+      "id": "KB-INV-001",
+      "topic": "inverter_operations",
+      "title": "Output source priority",
+      "content": "The inverter can be configured to prioritize different power sources for supplying connected loads. Available modes and behavior depend on the inverter model.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 03",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-CHG-001",
+      "topic": "charging_systems",
+      "title": "Charger source priority",
+      "content": "The documented inverter supports selectable charging-source priorities involving solar and utility power. Exact options depend on the model.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 05",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-CHG-002",
+      "topic": "charging_systems",
+      "title": "Maximum charging current",
+      "content": "The manual distinguishes utility charging current from total charging current. Charging limits must be checked against the battery manufacturer's specifications.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Programs 06 and 07",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-BAT-001",
+      "topic": "battery_management",
+      "title": "Battery type selection",
+      "content": "The documented inverter includes battery-type configuration. Battery chemistry must be identified before selecting charging settings.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 17",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-INV-002",
+      "topic": "inverter_operations",
+      "title": "AC input voltage range",
+      "content": "The documented inverter provides selectable AC input voltage ranges. Program 04 controls the input range. The manual describes an appliance range of 90-280VAC and a narrower UPS range of 170-264VAC.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 04",
+      "scope": "documented_model_family",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-CHG-003",
+      "topic": "charging_systems",
+      "title": "Solar and utility charging priority",
+      "content": "The documented inverter allows selection of solar and utility charging priorities through Program 05. Available options depend on the model.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 05",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-BAT-002",
+      "topic": "battery_management",
+      "title": "Flooded lead-acid battery selection",
+      "content": "Program 17 includes FLD for flooded or water-injection lead-acid batteries. This setting is specific to the documented inverter family and is not a universal configuration code.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Program 17",
+      "scope": "documented_model_family",
+      "status": "verified_from_manual"
+    },
+    {
+      "id": "KB-BAT-003",
+      "topic": "battery_management",
+      "title": "Low battery voltage protection",
+      "content": "The documented inverter includes configurable battery voltage thresholds for operating-mode changes and low-voltage protection. Thresholds must be interpreted using the inverter model, battery type and battery manufacturer's guidance.",
+      "source_id": "SRC-DEFAULT-001",
+      "source_section": "LCD Setting, Programs 15, 18 and 19",
+      "scope": "general_concept",
+      "status": "verified_from_manual"
+    }
+  ]
+}

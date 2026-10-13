@@ -1,0 +1,65 @@
+"""Client-carried conversation state. No cross-customer server session storage."""
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from .equipment_profile import EquipmentProfile
+from .engine import DiagnosticRequest
+from .quality_gate import diagnose_checked
+
+
+class ConversationRequest(BaseModel):
+    question: str = Field(min_length=2, max_length=2000)
+    profile: EquipmentProfile = Field(default_factory=EquipmentProfile)
+    updates: dict[str, Any] = Field(default_factory=dict)
+
+
+class ConversationResponse(BaseModel):
+    message: str
+    status: str
+    profile: EquipmentProfile
+    next_questions: list[str]
+    possible_causes: list[str]
+    recommended_checks: list[str]
+    suggested_solutions: list[str]
+    sources: list[dict]
+    safety_notice: str
+    safety_level: str
+
+
+def converse(request: ConversationRequest) -> ConversationResponse:
+    """Validate profile updates, diagnose, then enforce the quality gate."""
+    current = request.profile.model_dump()
+    allowed = set(EquipmentProfile.model_fields)
+    unknown = set(request.updates) - allowed
+    if unknown:
+        raise ValueError('Unknown profile fields: ' + ', '.join(sorted(unknown)))
+    for field, value in request.updates.items():
+        if value is not None:
+            current[field] = value
+
+    profile = EquipmentProfile.model_validate(current)
+    diagnostic_request = DiagnosticRequest(question=request.question, profile=profile)
+    review = diagnose_checked(diagnostic_request)
+    result = review.result
+
+    # Never append diagnostic guidance to a withheld response.
+    message = result.summary
+    if review.passed:
+        if result.follow_up_questions:
+            message += '\n\nNext question: ' + result.follow_up_questions[0]
+        elif result.possible_causes:
+            message += '\n\nPossible causes: ' + '; '.join(result.possible_causes)
+
+    return ConversationResponse(
+        message=message,
+        status=result.status,
+        profile=profile,
+        next_questions=result.follow_up_questions if review.passed else [],
+        possible_causes=result.possible_causes if review.passed else [],
+        recommended_checks=result.recommended_checks if review.passed else [],
+        suggested_solutions=result.suggested_solutions if review.passed else [],
+        sources=result.sources if review.passed else [],
+        safety_notice=result.safety_notice,
+        safety_level=result.safety_level,
+    )

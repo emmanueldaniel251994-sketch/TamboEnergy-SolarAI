@@ -1,8 +1,18 @@
+﻿from app.routes.manufacturer_review_audit import router as manufacturer_review_audit_router
+from app.routes.manufacturer_review_decisions import router as manufacturer_review_decisions_router
+from app.routes.manufacturer_pdf_review import router as manufacturer_pdf_review_router
+from app.routes.manufacturer_pdf_intake import router as manufacturer_pdf_intake_router
+from app.routes.manufacturer_document_intake import router as manufacturer_document_intake_router
+from app.routes.manufacturer_import import router as manufacturer_import_router
+from app.routes.manufacturer_chat import router as manufacturer_chat_router
+from app.routes.manufacturer_diagnostics import router as manufacturer_diagnostics_router
+from app.routes.universal_diagnostics import router as universal_diagnostics_router
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from app.routes.diagnostic_conversation import router as ai_conversation_router
 
 from app.config import (
     ALLOWED_HOSTS,
@@ -22,7 +32,13 @@ from app.routes.device_telemetry import router as device_telemetry_router
 from app.routes.device import router as device_router
 from app.routes import diagnostics, alerts, dashboard
 from app.routes.ai_assistant import router as ai_assistant_router
-
+from app.routes.diagnostic_quality import router as diagnostic_quality_router
+from app.routes.ai_sessions import router as ai_sessions_router
+from app.routes.manufacturers import router as manufacturers_router
+from app.routes.equipment_models import router as equipment_models_router
+from app.routes.technical_documents import router as technical_documents_router
+from app.routes.equipment_fault_codes import router as equipment_fault_codes_router
+from app.routes.manufacturer_verification import router as manufacturer_verification_router
 
 validate_runtime_config()
 
@@ -71,6 +87,14 @@ async def security_headers(request, call_next):
     return response
 
 
+app.include_router(manufacturer_review_audit_router)
+app.include_router(manufacturer_review_decisions_router)
+app.include_router(manufacturer_pdf_review_router)
+app.include_router(manufacturer_pdf_intake_router)
+app.include_router(manufacturer_document_intake_router)
+app.include_router(manufacturer_import_router)
+app.include_router(manufacturer_chat_router)
+app.include_router(manufacturer_diagnostics_router)
 app.include_router(auth_router)
 app.include_router(customers_router)
 app.include_router(solar_systems_router)
@@ -83,7 +107,14 @@ app.include_router(diagnostics.router)
 app.include_router(alerts.router)
 app.include_router(dashboard.router)
 app.include_router(ai_assistant_router)
-
+app.include_router(ai_conversation_router)
+app.include_router(diagnostic_quality_router)
+app.include_router(ai_sessions_router)
+app.include_router(manufacturers_router)
+app.include_router(equipment_models_router)
+app.include_router(technical_documents_router)
+app.include_router(equipment_fault_codes_router)
+app.include_router(manufacturer_verification_router)
 
 @app.get("/")
 def root():
@@ -112,3 +143,16 @@ def readiness_check(db: Session = Depends(get_db)):
         "database": "reachable",
         "version": APP_VERSION,
     }
+
+app.include_router(universal_diagnostics_router)
+
+
+
+
+
+
+
+
+
+
+
