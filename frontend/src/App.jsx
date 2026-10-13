@@ -511,7 +511,7 @@ function App() {
           ===================================================== */}
       <main className="dashboard-main">
         {activePage === "ai-assistant" ? (
-          <AIAssistant token={token} />
+          <AIAssistant key={token} token={token} />
         ) : activePage === "systems" ? (
           <SolarSystems token={token} />
         ) : activePage === "telemetry" ? (
