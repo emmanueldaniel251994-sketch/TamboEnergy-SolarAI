@@ -12,7 +12,7 @@ Administrators additionally see registration forms for manufacturers, models, do
 4. Revoke a record with a reason when verification is no longer justified. Revocation also revokes dependent records; the interface explains this before submission.
 5. Use **Load pending PDFs** to inspect stored PDF integrity and provenance review readiness. Record rejection, a request for more evidence, or provenance approval. This journal decision does not verify a manufacturer/database record.
 
-Registration of a document link does not download or parse its PDF. This change adds no upload UI, parsing worker, storage migration, or automatic promotion of pending content. PDF parsing isolation and transactional review storage remain outstanding backend work. Existing PDF review requires configured durable `SOLARAI_PENDING_PDF_DIR` storage; configuration errors are shown without claiming review success.
+Registration of a document link does not download or parse its PDF. The interface adds no upload UI or automatic promotion of pending content. Subsequent backend work added bounded PDF workers and transactional review history; see `PDF_PROCESSING_LIMITS.md` and `PDF_REVIEW_DATABASE.md`. Existing PDF review requires configured durable `SOLARAI_PENDING_PDF_DIR` storage; configuration errors are shown without claiming review success.
 
 ## Validation
 

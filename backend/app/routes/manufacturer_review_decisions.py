@@ -1,9 +1,11 @@
-"""Administrator-only PDF provenance review journal."""
+"""Administrator-only transactional PDF provenance review history."""
 import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.security import require_roles
-from app.services.manufacturer_review_decisions import record_decision, decision_history, DecisionError
+from app.services.manufacturer_pdf_reviews_db import record_review, review_history, DecisionError
 
 router = APIRouter(prefix="/manufacturer-knowledge", tags=["Manufacturer Knowledge"])
 
@@ -19,16 +21,16 @@ def configured_dir():
     return directory
 
 @router.post("/documents/pending-review/{sha256}/decision")
-def submit_review(sha256: str, body: ReviewDecision, admin=Depends(require_roles("admin"))):
+def submit_review(sha256: str, body: ReviewDecision, db: Session = Depends(get_db), admin=Depends(require_roles("admin"))):
     try:
-        return record_decision(configured_dir(), sha256, body.decision, admin.id,
+        return record_review(db, configured_dir(), sha256, body.decision, admin.id,
                                body.evidence_url, body.note)
     except DecisionError as exc:
         raise HTTPException(422, str(exc)) from exc
 
 @router.get("/documents/pending-review/{sha256}/decisions")
-def list_decisions(sha256: str, admin=Depends(require_roles("admin"))):
+def list_decisions(sha256: str, db: Session = Depends(get_db), admin=Depends(require_roles("admin"))):
     try:
-        return {"decisions": decision_history(configured_dir(), sha256)}
+        return {"decisions": review_history(db, sha256)}
     except DecisionError as exc:
         raise HTTPException(422, str(exc)) from exc
