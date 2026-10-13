@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.manufacturer_knowledge import EquipmentModel
 from app.security import require_roles
 from app.services.manufacturer_pdf_intake import (
-    PdfIntakeError, MAX_PDF_BYTES, inspect_pdf, save_pending_pdf,
+    PdfIntakeError, PdfIntakeBusyError, MAX_PDF_BYTES, inspect_pdf, save_pending_pdf,
 )
 from app.services.manufacturer_document_intake import valid_source_url
 
@@ -25,6 +25,10 @@ class PdfIntakeRequest(BaseModel):
 @router.post('/documents/pdf-intake')
 def pdf_intake(payload: PdfIntakeRequest, db: Session = Depends(get_db),
                admin=Depends(require_roles('admin'))):
+    if os.environ.get('APP_ENV', '').strip().lower() == 'production' and os.environ.get(
+        'SOLARAI_PDF_INTAKE_ENABLED', ''
+    ).strip().lower() not in {'1', 'true', 'yes', 'on'}:
+        raise HTTPException(503, 'PDF intake is disabled pending deployment isolation review')
     if not db.get(EquipmentModel, payload.equipment_model_id):
         raise HTTPException(404, 'Equipment model not found')
     if not valid_source_url(payload.source_url):
@@ -43,5 +47,7 @@ def pdf_intake(payload: PdfIntakeRequest, db: Session = Depends(get_db),
         metadata = save_pending_pdf(data, report, payload.equipment_model_id,
                                     payload.title.strip(), payload.source_url, storage)
         return {'committed': True, **metadata}
+    except PdfIntakeBusyError as exc:
+        raise HTTPException(503, str(exc), headers={'Retry-After': '10'}) from exc
     except (binascii.Error, PdfIntakeError) as exc:
         raise HTTPException(422, str(exc)) from exc

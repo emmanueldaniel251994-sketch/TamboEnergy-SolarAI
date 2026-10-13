@@ -1,11 +1,12 @@
 """Bounded PDF intake. This is not malware scanning or source verification."""
 import hashlib
-import io
 import json
 import os
 import tempfile
 from pathlib import Path
-from pypdf import PdfReader
+import subprocess
+import sys
+import threading
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
 MAX_PAGES = 80
@@ -14,36 +15,58 @@ MAX_TEXT_CHARS = 100_000
 class PdfIntakeError(ValueError):
     pass
 
+# Limits are per API process. Deployment concurrency must also be bounded.
+MAX_WORKER_OUTPUT = 800_000
+PDF_WORKER_TIMEOUT = 10
+_WORKERS = threading.BoundedSemaphore(2)
+
+class PdfIntakeBusyError(PdfIntakeError):
+    pass
+
+
 def inspect_pdf(data: bytes) -> dict:
     if not data or len(data) > MAX_PDF_BYTES:
         raise PdfIntakeError('PDF must be nonempty and no larger than 8 MiB')
     if not data.startswith(b'%PDF-'):
         raise PdfIntakeError('Invalid PDF header')
-    digest = hashlib.sha256(data).hexdigest()
+    if not _WORKERS.acquire(blocking=False):
+        raise PdfIntakeBusyError('PDF processing is busy; retry later')
     try:
-        reader = PdfReader(io.BytesIO(data), strict=True)
-        if reader.is_encrypted:
-            raise PdfIntakeError('Encrypted PDFs are not supported')
-        pages = len(reader.pages)
-        if pages < 1 or pages > MAX_PAGES:
-            raise PdfIntakeError('PDF must have 1 to 80 pages')
-        parts, count = [], 0
-        for page in reader.pages:
-            remaining = MAX_TEXT_CHARS - count
-            if remaining <= 0:
-                break
-            # pypdf is not a hardened sandbox; never use this on untrusted public uploads without isolation.
-            text = page.extract_text() or ''
-            text = text[:remaining]
-            parts.append(text)
-            count += len(text)
-    except PdfIntakeError:
-        raise
-    except Exception as exc:
-        raise PdfIntakeError('PDF parsing failed') from exc
-    return {'sha256': digest, 'bytes': len(data), 'pages': pages,
-            'extracted_chars': count, 'text': '\n\n'.join(parts),
-            'truncated': count >= MAX_TEXT_CHARS, 'verification_status': 'pending'}
+        worker = Path(__file__).with_name('manufacturer_pdf_worker.py').resolve()
+        command = [sys.executable, '-I', str(worker)]
+        if os.environ.get('APP_ENV', '').strip().lower() == 'production':
+            command.append('--require-limits')
+        # An allowlist excludes API/database credentials and Python path overrides.
+        environment = {key: os.environ[key] for key in ('SYSTEMROOT', 'WINDIR', 'LANG') if key in os.environ}
+        with tempfile.TemporaryDirectory(prefix='solarai-pdf-') as directory:
+            with tempfile.TemporaryFile() as output:
+                process = subprocess.run(command, input=data, stdout=output, stderr=subprocess.DEVNULL,
+                    cwd=directory, env=environment, timeout=PDF_WORKER_TIMEOUT, check=False)
+                output.seek(0)
+                raw = output.read(MAX_WORKER_OUTPUT + 1)
+        if process.returncode != 0 or not raw or len(raw) > MAX_WORKER_OUTPUT:
+            raise PdfIntakeError('PDF parsing failed or exceeded resource limits')
+        try:
+            payload = json.loads(raw)
+            result = payload['result']
+            pages, count, text = result['pages'], result['extracted_chars'], result['text']
+            if (type(pages) is not int or not 1 <= pages <= MAX_PAGES
+                    or type(count) is not int or not 0 <= count <= MAX_TEXT_CHARS
+                    or not isinstance(text, str) or len(text) > MAX_TEXT_CHARS + 2 * MAX_PAGES
+                    or type(result['truncated']) is not bool):
+                raise ValueError('Invalid parser result')
+        except (ValueError, TypeError, KeyError):
+            raise PdfIntakeError('PDF parsing failed or exceeded resource limits') from None
+        return {'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'pages': pages,
+                'extracted_chars': count, 'text': text, 'truncated': result['truncated'],
+                'verification_status': 'pending'}
+    except subprocess.TimeoutExpired:
+        # subprocess.run kills and waits for the child before raising.
+        raise PdfIntakeError('PDF processing timed out') from None
+    except OSError:
+        raise PdfIntakeError('PDF processing worker is unavailable') from None
+    finally:
+        _WORKERS.release()
 
 def save_pending_pdf(data: bytes, report: dict, equipment_model_id: int,
                      title: str, source_url: str, storage_dir: str) -> dict:
